@@ -1,0 +1,293 @@
+.cases-container {
+  color: #f1f1f1;
+  padding: 20px;
+  background-color: #121212;
+  min-height: 100vh;
+}
+
+.cases-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.cases-header h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.create-btn {
+  background-color: #3b82f6;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.create-btn:hover {
+  background-color: #2563eb;
+}
+
+.cases-filters {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.tab-btn {
+  padding: 6px 14px;
+  border-radius: 5px;
+  background-color: #1e1e1e;
+  border: none;
+  color: #ddd;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.tab-btn:hover {
+  background-color: #333;
+}
+
+.tab-btn.active {
+  background-color: #374151;
+}
+
+.search-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.search-input {
+  background-color: #1f2937;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  flex: 1;
+}
+
+.search-btn {
+  background-color: #374151;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: none;
+  color: white;
+}
+
+.search-btn:hover {
+  background-color: #4b5563;
+}
+
+.clear-btn {
+  padding: 8px 12px;
+  background-color: #6b7280;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.clear-btn:hover {
+  background-color: #4b5563;
+}
+
+.cases-table-container {
+  background-color: #1e293b;
+  border-radius: 10px;
+  overflow-x: auto;
+}
+
+.cases-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cases-table th,
+.cases-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #374151;
+}
+
+.cases-table th {
+  background-color: #111827;
+  font-weight: 600;
+}
+
+.case-id {
+  font-weight: 600;
+  color: #f1f1f1;
+}
+
+/* ✔ FIXED: Normal-sized name text */
+.case-title {
+  font-size: 14px !important;
+  font-weight: 500;
+}
+
+.case-name-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.open-btn {
+  background-color: #3b82f6;
+  padding: 6px 10px;
+  border-radius: 4px;
+  color: white;
+  text-decoration: none;
+}
+
+.open-btn:hover {
+  background-color: #2563eb;
+}
+
+.delete-btn {
+  background-color: #dc2626;
+  padding: 6px 10px;
+  border-radius: 4px;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.delete-btn:hover {
+  background-color: #b91c1c;
+}
+
+.no-cases {
+  text-align: center;
+  color: #9ca3af;
+  padding: 24px;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #9ca3af;
+  font-size: 16px;
+}
+
+/* ===== STATUS BADGES ===== */
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status-badge.new {
+  background: #1e3a8a;
+  color: #93c5fd;
+}
+
+.status-badge.pending {
+  background: #7c2d12;
+  color: #fdba74;
+}
+
+.status-badge.completed {
+  background: #14532d;
+  color: #86efac;
+}
+
+/* ===== PRIORITY BADGES ===== */
+.priority-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.priority-badge.low {
+  background: #14532d;
+  color: #86efac;
+}
+
+.priority-badge.medium {
+  background: #7c2d12;
+  color: #fdba74;
+}
+
+.priority-badge.high {
+  background: #7f1d1d;
+  color: #fca5a5;
+}
+
+.priority-badge.critical {
+  background: #831843;
+  color: #f9a8d4;
+}
+
+/* ===== MODAL POPUP ===== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.modal {
+  background-color: #1f2937;
+  padding: 20px;
+  border-radius: 10px;
+  width: 320px;
+  text-align: center;
+  color: white;
+  box-shadow: 0 0 20px rgba(0,0,0,0.4);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.danger-btn {
+  background: #dc2626;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  color: white;
+}
+
+.danger-btn:hover {
+  background: #b91c1c;
+}
+
+.cancel-btn {
+  background: #6b7280;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  color: white;
+}
+
+.cancel-btn:hover {
+  background: #4b5563;
+}

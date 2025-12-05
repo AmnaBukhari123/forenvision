@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+psycopg2-binary
+sqlalchemy
+python-jose
+passlib[bcrypt]
+python-dotenv
+pydantic[email]
+pyotp
+onnxruntime
+pillow
+opencv-python
+numpy

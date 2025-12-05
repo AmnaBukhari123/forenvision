@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-gray-900 text-white;
+  overflow-y: scroll; /* always show scrollbar */
+  scroll-behavior: smooth;
+}
+
+/* 🌑 Global Scrollbar Style */
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #4b5563 #111827; /* thumb + track */
+}
+
+/* For Chrome, Edge, Safari */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #111827; /* track color (gray-900) */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #4b5563; /* thumb (gray-600) */
+  border-radius: 10px;
+  border: 2px solid #111827; /* spacing inside */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #6b7280; /* gray-500 hover */
+}

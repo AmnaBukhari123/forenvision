@@ -1,0 +1,322 @@
+/* ================= AUTH CONTAINER ================= */
+.signup-page .auth-container {
+  min-height: 100vh;
+  background: linear-gradient(to bottom, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ================= BACK BUTTON ================= */
+.back-button {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.back-button:hover {
+  color: #3b82f6;
+}
+
+/* ================= ANIMATED BACKGROUND ================= */
+.signup-page .auth-background {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.signup-page .auth-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.3;
+}
+
+.signup-page .orb-1 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, transparent 70%);
+  top: -200px;
+  right: -200px;
+  animation: float 20s ease-in-out infinite;
+}
+
+.signup-page .orb-2 {
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, transparent 70%);
+  bottom: -150px;
+  left: -150px;
+  animation: float 15s ease-in-out infinite reverse;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(20px, 20px); }
+}
+
+/* ================= FORM CARD ================= */
+.auth-form {
+  max-width: 650px;
+  width: 100%;
+  padding: 2rem;
+  background: rgba(30, 41, 59, 0.7);
+  border-radius: 1.25rem;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  backdrop-filter: blur(15px);
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+  max-height: 90vh;
+  gap: 1.25rem;
+}
+
+.auth-form > * {
+  width: 100%;
+  text-align: left;
+}
+
+.auth-form .form-header,
+.auth-form .form-footer,
+.auth-form .submit-button {
+  text-align: center;
+}
+
+/* ================= FORM HEADER ================= */
+.signup-page .form-header {
+  margin-bottom: 0.5rem;
+}
+
+.signup-page .form-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 0.5rem;
+}
+
+.signup-page .form-subtitle {
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+/* ================= FORM GROUPS ================= */
+.signup-page .form-group {
+  width: 100%;
+}
+
+.signup-page .form-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 0.25rem;
+}
+
+.signup-page .input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.signup-page .form-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(15, 23, 42, 0.85);
+  border: 2px solid rgba(59, 130, 246, 0.2);
+  border-radius: 0.5rem;
+  color: white;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.signup-page .form-input::placeholder {
+  color: #64748b;
+}
+
+.signup-page .form-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: rgba(15, 23, 42, 0.95);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.signup-page .form-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ================= TWO-COLUMN LAYOUT ================= */
+.form-fields-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.form-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-column .form-group {
+  margin-bottom: 1rem;
+}
+
+.form-column .form-group:last-child {
+  margin-bottom: 0;
+}
+
+/* ================= INVESTIGATOR FIELDS ================= */
+.investigator-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  width: 100%;
+  grid-column: 1 / -1;
+}
+
+/* ================= PASSWORD TOGGLE ================= */
+.password-toggle {
+  position: absolute;
+  right: 0.75rem;
+  padding: 0.25rem;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: color 0.3s ease;
+}
+
+.password-toggle:hover {
+  color: #3b82f6;
+}
+
+/* ================= SUBMIT BUTTON ================= */
+.submit-button {
+  padding: 0.85rem 1.75rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  align-self: center;
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+  transition: all 0.3s ease;
+}
+
+.submit-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.4);
+}
+
+.submit-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* ================= FORM FOOTER ================= */
+.form-footer {
+  margin-top: 0.5rem;
+}
+
+.footer-text {
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.footer-link {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.footer-link:hover {
+  color: #60a5fa;
+  text-decoration: underline;
+}
+
+/* ================= ROLE SELECTION ================= */
+.role-selection {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.role-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.75rem;
+  gap: 0.25rem;
+  width: 100%;
+  background: rgba(15, 23, 42, 0.8);
+  border: 2px solid rgba(59, 130, 246, 0.2);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.role-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.role-option.active {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* ================= RESPONSIVE DESIGN ================= */
+@media (max-width: 968px) {
+  .form-fields-wrapper,
+  .investigator-fields,
+  .role-selection {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .auth-form {
+    padding: 1rem;
+  }
+
+  .form-input {
+    padding: 0.65rem 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .submit-button {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.9rem;
+  }
+}
