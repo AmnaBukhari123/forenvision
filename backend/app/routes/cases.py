@@ -1,8 +1,8 @@
-# app/routes/cases.py - WITH ENHANCED DEBUGGING
+# app/routes/cases.py - WITH ENHANCED DEBUGGING AND WITNESS STATEMENTS
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 import datetime
 import os
 import logging
@@ -45,6 +45,19 @@ class CaseUpdate(BaseModel):
 class CaseAcceptance(BaseModel):
     acceptance_status: str
     rejection_reason: Optional[str] = None
+
+# =============== WITNESS STATEMENT MODELS ===============
+class WitnessStatementIn(BaseModel):
+    witness_name: str
+    statement: str
+    contact_info: Optional[str] = None
+    statement_date: Optional[datetime.datetime] = None
+
+class WitnessStatementUpdate(BaseModel):
+    witness_name: Optional[str] = None
+    statement: Optional[str] = None
+    contact_info: Optional[str] = None
+    statement_date: Optional[datetime.datetime] = None
 
 # =============== CASE ROUTES ===============
 @router.post("/cases")
@@ -464,6 +477,235 @@ def delete_evidence(evidence_id: int, current_user: dict = Depends(get_current_u
         except Exception:
             pass
 
+# =============== WITNESS STATEMENTS ROUTES ===============
+@router.get("/cases/{case_id}/witness-statements")
+def get_witness_statements(case_id: int, current_user: dict = Depends(get_current_user)):
+    """Get all witness statements for a specific case."""
+    conn = database.get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    try:
+        user_id = current_user.get("id")
+        user_role = current_user.get("role")
+        logger.info(f"Getting witness statements for case {case_id}, user {user_id}")
+        
+        # First check if case exists
+        if user_role == "admin":
+            cur.execute("SELECT id FROM cases WHERE id = %s", (case_id,))
+        else:
+            cur.execute("SELECT id FROM cases WHERE id = %s AND user_id = %s", 
+                       (case_id, user_id))
+        case_check = cur.fetchone()
+        
+        if not case_check:
+            logger.warning(f"Case {case_id} not found or access denied")
+            raise HTTPException(status_code=404, detail="Case not found")
+        
+        # Get witness statements
+        if user_role == "admin":
+            cur.execute(
+                """SELECT ws.*, u.name as added_by_name, u.email as added_by_email
+                   FROM witness_statements ws
+                   LEFT JOIN users u ON ws.user_id = u.id
+                   WHERE ws.case_id = %s 
+                   ORDER BY ws.created_at DESC""",
+                (case_id,)
+            )
+        else:
+            cur.execute(
+                """SELECT ws.*, u.name as added_by_name, u.email as added_by_email
+                   FROM witness_statements ws
+                   LEFT JOIN users u ON ws.user_id = u.id
+                   WHERE ws.case_id = %s AND ws.user_id = %s
+                   ORDER BY ws.created_at DESC""",
+                (case_id, user_id)
+            )
+        
+        statements = cur.fetchall()
+        logger.info(f"Found {len(statements)} witness statements for case {case_id}")
+        
+        return {"witness_statements": statements}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error fetching witness statements: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching witness statements: {str(e)}")
+    finally:
+        cur.close()
+        conn.close()
+
+@router.post("/cases/{case_id}/witness-statements")
+def create_witness_statement(
+    case_id: int, 
+    statement: WitnessStatementIn, 
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new witness statement for a case."""
+    conn = database.get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    try:
+        user_id = current_user.get("id")
+        logger.info(f"Creating witness statement for case {case_id}, user {user_id}")
+        
+        # Verify case exists AND belongs to user
+        cur.execute("SELECT id FROM cases WHERE id = %s AND user_id = %s", 
+                   (case_id, user_id))
+        case_row = cur.fetchone()
+        
+        if not case_row:
+            logger.warning(f"Case {case_id} not found or access denied for user {user_id}")
+            raise HTTPException(status_code=404, detail="Case not found")
+        
+        # Insert witness statement
+        cur.execute(
+            """INSERT INTO witness_statements 
+               (case_id, witness_name, statement, contact_info, statement_date, user_id)
+               VALUES (%s, %s, %s, %s, %s, %s)
+               RETURNING *""",
+            (
+                case_id,
+                statement.witness_name,
+                statement.statement,
+                statement.contact_info,
+                statement.statement_date,
+                user_id
+            )
+        )
+        new_statement = cur.fetchone()
+        conn.commit()
+        
+        logger.info(f"Witness statement created successfully: ID {new_statement['id']}")
+        return {"witness_statement": new_statement}
+        
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        logger.exception(f"Error creating witness statement: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating witness statement: {str(e)}")
+    finally:
+        cur.close()
+        conn.close()
+
+@router.put("/witness-statements/{statement_id}")
+def update_witness_statement(
+    statement_id: int, 
+    statement_update: WitnessStatementUpdate, 
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a witness statement."""
+    conn = database.get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    try:
+        user_id = current_user.get("id")
+        logger.info(f"Updating witness statement {statement_id} for user {user_id}")
+        
+        # Check if statement exists AND belongs to user
+        cur.execute(
+            "SELECT id FROM witness_statements WHERE id = %s AND user_id = %s",
+            (statement_id, user_id)
+        )
+        if not cur.fetchone():
+            logger.warning(f"Witness statement {statement_id} not found or access denied")
+            raise HTTPException(status_code=404, detail="Witness statement not found")
+        
+        # Build dynamic update query
+        update_fields = []
+        params = []
+        
+        if statement_update.witness_name is not None:
+            update_fields.append("witness_name = %s")
+            params.append(statement_update.witness_name)
+        if statement_update.statement is not None:
+            update_fields.append("statement = %s")
+            params.append(statement_update.statement)
+        if statement_update.contact_info is not None:
+            update_fields.append("contact_info = %s")
+            params.append(statement_update.contact_info)
+        if statement_update.statement_date is not None:
+            update_fields.append("statement_date = %s")
+            params.append(statement_update.statement_date)
+        
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No fields to update")
+        
+        update_fields.append("updated_at = %s")
+        params.append(datetime.datetime.now())
+        
+        params.append(statement_id)
+        params.append(user_id)
+        
+        query = f"UPDATE witness_statements SET {', '.join(update_fields)} WHERE id = %s AND user_id = %s RETURNING *"
+        
+        cur.execute(query, tuple(params))
+        updated_statement = cur.fetchone()
+        conn.commit()
+        
+        logger.info(f"Witness statement {statement_id} updated successfully")
+        return {"witness_statement": updated_statement}
+        
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        logger.exception(f"Error updating witness statement: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating witness statement: {str(e)}")
+    finally:
+        cur.close()
+        conn.close()
+
+@router.delete("/witness-statements/{statement_id}")
+def delete_witness_statement(statement_id: int, current_user: dict = Depends(get_current_user)):
+    """Delete a witness statement."""
+    conn = database.get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    try:
+        user_id = current_user.get("id")
+        logger.info(f"Deleting witness statement {statement_id} for user {user_id}")
+        
+        # First get statement info for logging
+        cur.execute(
+            "SELECT id, witness_name FROM witness_statements WHERE id = %s AND user_id = %s",
+            (statement_id, user_id)
+        )
+        statement = cur.fetchone()
+        
+        if not statement:
+            logger.warning(f"Witness statement {statement_id} not found or access denied")
+            raise HTTPException(status_code=404, detail="Witness statement not found")
+        
+        # Delete the statement
+        cur.execute(
+            "DELETE FROM witness_statements WHERE id = %s AND user_id = %s",
+            (statement_id, user_id)
+        )
+        conn.commit()
+        
+        logger.info(f"Witness statement {statement_id} ({statement['witness_name']}) deleted successfully")
+        return {
+            "success": True,
+            "message": "Witness statement deleted successfully",
+            "deleted_id": statement_id,
+            "witness_name": statement['witness_name']
+        }
+        
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        logger.exception(f"Error deleting witness statement: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error deleting witness statement: {str(e)}")
+    finally:
+        cur.close()
+        conn.close()
+
 # =============== CASE ACCEPTANCE ROUTES ===============
 @router.post("/cases/{case_id}/accept")
 def accept_case(
@@ -528,8 +770,7 @@ def accept_case(
                 WHERE id = %s AND user_id = %s
                 RETURNING *
             """, ('declined', acceptance.rejection_reason, datetime.datetime.now(), case_id, user_id))
-        
-        updated_case = cur.fetchone()
+            updated_case = cur.fetchone()
         conn.commit()
         
         logger.info(f"Case {case_id} {acceptance.acceptance_status} successfully")

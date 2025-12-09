@@ -11,3 +11,5 @@ onnxruntime
 pillow
 opencv-python
 numpy
+jwt
+python-multipart

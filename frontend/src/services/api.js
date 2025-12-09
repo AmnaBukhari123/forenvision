@@ -163,6 +163,35 @@ export async function deleteEvidence(evidenceId) {
   return res;
 }
 
+// =============== WITNESS STATEMENT ENDPOINTS ===============
+export async function getWitnessStatements(caseId) {
+  const res = await authFetch(`/api/v1/cases/${caseId}/witness-statements`);
+  return res;
+}
+
+export async function addWitnessStatement(caseId, witnessData) {
+  const res = await authFetch(`/api/v1/cases/${caseId}/witness-statements`, {
+    method: 'POST',
+    body: JSON.stringify(witnessData),
+  });
+  return res;
+}
+
+export async function updateWitnessStatement(statementId, witnessData) {
+  const res = await authFetch(`/api/v1/witness-statements/${statementId}`, {
+    method: 'PUT',
+    body: JSON.stringify(witnessData),
+  });
+  return res;
+}
+
+export async function deleteWitnessStatement(statementId) {
+  const res = await authFetch(`/api/v1/witness-statements/${statementId}`, {
+    method: 'DELETE',
+  });
+  return res;
+}
+
 // =============== OBJECT DETECTION ENDPOINTS ===============
 
 /**

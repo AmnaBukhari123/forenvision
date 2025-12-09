@@ -1,14 +1,26 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, JSON, Boolean, Enum
+# models.py
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    DateTime,
+    Text,
+    ForeignKey,
+    JSON,
+    Boolean,
+    Enum as SAEnum,
+)
 from sqlalchemy.sql import func
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, declarative_base
 import enum
 
 Base = declarative_base()
 
+
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
     INVESTIGATOR = "investigator"
+
 
 class User(Base):
     __tablename__ = "users"
@@ -19,90 +31,119 @@ class User(Base):
     name = Column(String, nullable=True)
     contact_number = Column(String, nullable=True)
     profile_picture = Column(String, nullable=True)
+
     two_factor_enabled = Column(Boolean, default=False)
     two_factor_secret = Column(String, nullable=True)
-    roles = Column(String, default='investigator', nullable=False)
-    
+
+    # keep as String to avoid changing other files that expect text values;
+    # if you want strict enum enforcement later, switch to SAEnum(UserRole)
+    roles = Column(String, default="investigator", nullable=False)
+
     # Investigator-specific fields
     specialization = Column(String, nullable=True)
     years_of_experience = Column(Integer, nullable=True)
     certification = Column(String, nullable=True)
     department = Column(String, nullable=True)
     is_available = Column(Boolean, default=True)
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # relationships
+    cases = relationship("Case", back_populates="user")
+    evidences = relationship("Evidence", back_populates="user")
+    witness_statements = relationship("WitnessStatement", back_populates="user")
+
+    def __repr__(self):
+        return f"<User id={self.id} email={self.email} roles={self.roles}>"
+
 
 class ContactRequest(Base):
     __tablename__ = "contact_requests"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     email = Column(String, nullable=False)
     phone = Column(String, nullable=True)
     subject = Column(String, nullable=False)
     message = Column(Text, nullable=False)
-    evidence_files = Column(JSON, default=[])
-    status = Column(String, default='pending')
-    priority = Column(String, default='medium')
-    
+
+    # Use callable defaults to avoid shared mutable default across instances
+    evidence_files = Column(JSON, default=list)
+    status = Column(String, default="pending")
+    priority = Column(String, default="medium")
+
     # Assignment tracking
     assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True)
     assigned_investigator = relationship("User", foreign_keys=[assigned_to])
-    
-    # Conversion tracking
+
+    # Conversion tracking (link to Case)
     converted_to_case_id = Column(Integer, ForeignKey("cases.id"), nullable=True)
-    
+    converted_case = relationship("Case", foreign_keys=[converted_to_case_id])
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
     admin_notes = Column(Text, nullable=True)
+
+    def __repr__(self):
+        return f"<ContactRequest id={self.id} name={self.name} status={self.status}>"
+
 
 class UserSettings(Base):
     __tablename__ = "user_settings"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    
+
     # Application Settings
-    language = Column(String, default='en')
-    theme = Column(String, default='system')
+    language = Column(String, default="en")
+    theme = Column(String, default="system")
     default_date_range = Column(Integer, default=7)
-    
+
     # Analysis Configuration
-    hashing_algorithm = Column(String, default='sha256')
-    file_type_categories = Column(JSON, default={
-        'documents': ['.pdf', '.doc', '.docx', '.txt'],
-        'images': ['.jpg', '.jpeg', '.png', '.gif'],
-        'videos': ['.mp4', '.avi', '.mov'],
-        'scripts': ['.ps1', '.bat', '.sh', '.py']
-    })
-    keyword_lists = Column(JSON, default=['Credit Card Patterns', 'SSN Patterns', 'Confidential Terms'])
-    external_tools = Column(JSON, default={
-        'volatility': '',
-        'autopsy': '',
-        'other': ''
-    })
-    
+    hashing_algorithm = Column(String, default="sha256")
+    file_type_categories = Column(
+        JSON,
+        default=lambda: {
+            "documents": [".pdf", ".doc", ".docx", ".txt"],
+            "images": [".jpg", ".jpeg", ".png", ".gif"],
+            "videos": [".mp4", ".avi", ".mov"],
+            "scripts": [".ps1", ".bat", ".sh", ".py"],
+        },
+    )
+    keyword_lists = Column(JSON, default=lambda: ["Credit Card Patterns", "SSN Patterns", "Confidential Terms"])
+    external_tools = Column(JSON, default=lambda: {"volatility": "", "autopsy": "", "other": ""})
+
     # Case Management Settings
-    case_number_prefix = Column(String, default='FV')
-    default_classification = Column(String, default='confidential')
-    default_priority = Column(String, default='medium')
+    case_number_prefix = Column(String, default="FV")
+    default_classification = Column(String, default="confidential")
+    default_priority = Column(String, default="medium")
     auto_assign_investigator = Column(Boolean, default=False)
     auto_archive_enabled = Column(Boolean, default=True)
     archive_after_days = Column(Integer, default=90)
     archive_only_closed = Column(Boolean, default=True)
-    
+
     # Data & Storage Settings
     storage_quota_enabled = Column(Boolean, default=False)
     user_storage_limit = Column(Integer, default=1024)
     compression_enabled = Column(Boolean, default=True)
-    data_export_format = Column(String, default='json')
-    
+    data_export_format = Column(String, default="json")
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     user = relationship("User")
+
+    def __repr__(self):
+        return f"<UserSettings id={self.id} user_id={self.user_id}>"
+
 
 class Case(Base):
     __tablename__ = "cases"
@@ -115,21 +156,34 @@ class Case(Base):
     priority = Column(String)
     client = Column(String)
     investigating_officer = Column(String)
-    status = Column(String, default='New')
-    
-    # ✅ ADDED: Case acceptance workflow fields
-    acceptance_status = Column(String, default='pending', nullable=True)  # 'pending', 'accepted', 'declined'
+    status = Column(String, default="New")
+
+    # Case acceptance workflow fields
+    acceptance_status = Column(String, default="pending", nullable=True)  # 'pending', 'accepted', 'declined'
     accepted_at = Column(DateTime(timezone=True), nullable=True)
     rejection_reason = Column(Text, nullable=True)
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    user = relationship("User", foreign_keys=[user_id])
-    
+    user = relationship("User", foreign_keys=[user_id], back_populates="cases")
+
     # Track if case originated from contact request
     source_contact_request_id = Column(Integer, ForeignKey("contact_requests.id"), nullable=True)
+    source_contact_request = relationship("ContactRequest", foreign_keys=[source_contact_request_id])
+
+    # Evidence relationship
+    evidences = relationship("Evidence", back_populates="case", cascade="all, delete-orphan")
+    
+    # Witness statements relationship
+    witness_statements = relationship("WitnessStatement", back_populates="case", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<Case id={self.id} name={self.name} status={self.status}>"
+
 
 class Evidence(Base):
     __tablename__ = "evidence"
@@ -141,4 +195,33 @@ class Evidence(Base):
     uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    user = relationship("User")
+    user = relationship("User", back_populates="evidences")
+
+    case = relationship("Case", back_populates="evidences")
+
+    def __repr__(self):
+        return f"<Evidence id={self.id} filename={self.filename} case_id={self.case_id}>"
+
+
+class WitnessStatement(Base):
+    __tablename__ = "witness_statements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), nullable=False)
+    witness_name = Column(String, nullable=False)
+    statement = Column(Text, nullable=False)
+    contact_info = Column(String, nullable=True)
+    statement_date = Column(DateTime, nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user = relationship("User", back_populates="witness_statements")
+    
+    case = relationship("Case", back_populates="witness_statements")
+
+    def __repr__(self):
+        return f"<WitnessStatement id={self.id} witness_name={self.witness_name} case_id={self.case_id}>"

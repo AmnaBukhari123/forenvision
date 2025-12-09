@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 # User Schemas
@@ -55,6 +55,29 @@ class EvidenceResponse(EvidenceBase):
     id: int
     case_id: int
     uploaded_at: datetime
+
+    class Config:
+        orm_mode = True
+
+# Witness Statement Schemas
+class WitnessStatementBase(BaseModel):
+    witness_name: str
+    statement: str
+    contact_info: Optional[str] = None
+    statement_date: Optional[datetime] = None
+
+class WitnessStatementCreate(WitnessStatementBase):
+    case_id: int
+
+class WitnessStatementUpdate(WitnessStatementBase):
+    witness_name: Optional[str] = None
+    statement: Optional[str] = None
+
+class WitnessStatementResponse(WitnessStatementBase):
+    id: int
+    case_id: int
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         orm_mode = True

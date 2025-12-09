@@ -11,7 +11,10 @@ import {
   deleteDetectionResult,
   deleteEvidence,
   getCurrentUser,
-  getModelsInfo
+  getModelsInfo,
+  addWitnessStatement,
+  getWitnessStatements,
+  deleteWitnessStatement
 } from "../services/api";
 import "./CaseDetail.css";
 
@@ -20,6 +23,7 @@ export default function CaseDetail() {
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
   const fileInputRef = useRef(null);
+  const resultsSectionRef = useRef(null);
   
   const [data, setData] = useState(null);
   const [file, setFile] = useState(null);
@@ -51,6 +55,18 @@ export default function CaseDetail() {
   const [deletingResultId, setDeletingResultId] = useState(null);
   const [deletingEvidenceId, setDeletingEvidenceId] = useState(null);
   const [availableModels, setAvailableModels] = useState([]);
+  
+  // Witness Statements States
+  const [witnessStatements, setWitnessStatements] = useState([]);
+  const [showWitnessForm, setShowWitnessForm] = useState(false);
+  const [witnessForm, setWitnessForm] = useState({
+    witness_name: "",
+    statement: "",
+    contact_info: "",
+    statement_date: ""
+  });
+  const [addingWitness, setAddingWitness] = useState(false);
+  const [deletingWitnessId, setDeletingWitnessId] = useState(null);
 
   const load = async () => {
     try {
@@ -71,6 +87,7 @@ export default function CaseDetail() {
         });
         
         await loadDetectionResults();
+        await loadWitnessStatements();
       } else if (res.status === 401) {
         alert('Session expired. Please login again.');
         localStorage.removeItem('token');
@@ -91,6 +108,16 @@ export default function CaseDetail() {
       setDetectionResults(data.detection_results || []);
     } catch (error) {
       console.error('Error loading detection results:', error);
+    }
+  };
+
+  const loadWitnessStatements = async () => {
+    try {
+      const response = await getWitnessStatements(id);
+      const data = await response.json();
+      setWitnessStatements(data.witness_statements || []);
+    } catch (error) {
+      console.error('Error loading witness statements:', error);
     }
   };
 
@@ -141,7 +168,7 @@ export default function CaseDetail() {
       setEditForm({
         name: data.case.name || "",
         description: data.case.description || "",
-        incident_date: data.case.incident_date ? data.case.incident_date.split('T')[0] : "",
+        incident_date: data.case.incident_date ? d.case.incident_date.split('T')[0] : "",
         category: data.case.category || "",
         priority: data.case.priority || "",
         client: data.case.client || "",
@@ -245,9 +272,18 @@ export default function CaseDetail() {
         
         await loadDetectionResults();
         
+        // Scroll to detection results after a brief delay
         setTimeout(() => {
           setShowDetectionModal(false);
-        }, 2000);
+          setTimeout(() => {
+            if (resultsSectionRef.current) {
+              resultsSectionRef.current.scrollIntoView({ 
+                behavior: 'smooth',
+                block: 'start'
+              });
+            }
+          }, 100);
+        }, 1000);
       } else {
         setDetectionMessage({ 
           type: "error", 
@@ -311,6 +347,70 @@ export default function CaseDetail() {
       setMessage("Error deleting evidence: " + error.message);
     } finally {
       setDeletingEvidenceId(null);
+    }
+  };
+
+  // Witness Statements Functions
+  const handleWitnessFormChange = (e) => {
+    setWitnessForm({
+      ...witnessForm,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleAddWitnessStatement = async () => {
+    if (!witnessForm.witness_name.trim() || !witnessForm.statement.trim()) {
+      setMessage("Please fill in witness name and statement");
+      return;
+    }
+
+    setAddingWitness(true);
+    try {
+      const response = await addWitnessStatement(id, witnessForm);
+      
+      if (response.ok) {
+        setMessage("Witness statement added successfully");
+        setShowWitnessForm(false);
+        setWitnessForm({
+          witness_name: "",
+          statement: "",
+          contact_info: "",
+          statement_date: ""
+        });
+        await loadWitnessStatements();
+      } else {
+        const errorData = await response.json();
+        setMessage("Failed to add witness statement: " + (errorData.detail || "Unknown error"));
+      }
+    } catch (error) {
+      console.error('Add witness statement error:', error);
+      setMessage("Error adding witness statement: " + error.message);
+    } finally {
+      setAddingWitness(false);
+    }
+  };
+
+  const handleDeleteWitnessStatement = async (witnessId) => {
+    if (!window.confirm("Are you sure you want to delete this witness statement?")) {
+      return;
+    }
+
+    setDeletingWitnessId(witnessId);
+    try {
+      const response = await deleteWitnessStatement(witnessId);
+      
+      if (response.ok) {
+        setMessage("Witness statement deleted successfully");
+        await loadWitnessStatements();
+      } else {
+        const errorData = await response.json();
+        setMessage("Failed to delete witness statement: " + (errorData.detail || "Unknown error"));
+      }
+    } catch (error) {
+      console.error('Delete witness statement error:', error);
+      setMessage("Error deleting witness statement: " + error.message);
+    } finally {
+      setDeletingWitnessId(null);
     }
   };
 
@@ -518,6 +618,134 @@ export default function CaseDetail() {
         </section>
       )}
 
+      {/* Witness Statements Section */}
+      <section className="witness-statements-section">
+        <div className="section-header">
+          <h3>👥 Witness Statements</h3>
+          <div className="section-header-actions">
+            <span className="evidence-count">{witnessStatements.length} statements</span>
+            <button 
+              className="add-witness-btn"
+              onClick={() => setShowWitnessForm(!showWitnessForm)}
+            >
+              {showWitnessForm ? 'Cancel' : '+ Add Statement'}
+            </button>
+          </div>
+        </div>
+
+        {showWitnessForm && (
+          <div className="witness-form">
+            <div className="form-row">
+              <div className="form-group">
+                <label>Witness Name *</label>
+                <input
+                  type="text"
+                  name="witness_name"
+                  value={witnessForm.witness_name}
+                  onChange={handleWitnessFormChange}
+                  placeholder="Enter witness name"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Statement Date</label>
+                <input
+                  type="date"
+                  name="statement_date"
+                  value={witnessForm.statement_date}
+                  onChange={handleWitnessFormChange}
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Contact Information</label>
+              <input
+                type="text"
+                name="contact_info"
+                value={witnessForm.contact_info}
+                onChange={handleWitnessFormChange}
+                placeholder="Phone number, email, or address"
+              />
+            </div>
+            <div className="form-group">
+              <label>Statement *</label>
+              <textarea
+                name="statement"
+                value={witnessForm.statement}
+                onChange={handleWitnessFormChange}
+                rows="4"
+                placeholder="Enter witness statement"
+                required
+              />
+            </div>
+            <div className="form-actions">
+              <button 
+                className="btn-save-edit" 
+                onClick={handleAddWitnessStatement}
+                disabled={addingWitness}
+              >
+                {addingWitness ? "Adding..." : "Add Statement"}
+              </button>
+              <button 
+                className="btn-cancel-edit" 
+                onClick={() => setShowWitnessForm(false)}
+                disabled={addingWitness}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="witness-list">
+          {witnessStatements.length === 0 ? (
+            <div className="empty-state">
+              <p>No witness statements added yet</p>
+              <small>Add witness statements using the + button above</small>
+            </div>
+          ) : (
+            witnessStatements.map((witness) => (
+              <div key={witness.id} className="witness-card">
+                <button 
+                  className="delete-witness-btn"
+                  onClick={() => handleDeleteWitnessStatement(witness.id)}
+                  disabled={deletingWitnessId === witness.id}
+                  title="Delete witness statement"
+                >
+                  {deletingWitnessId === witness.id ? '⏳' : '×'}
+                </button>
+                
+                <div className="witness-header">
+                  <h4 className="witness-name">{witness.witness_name}</h4>
+                  {witness.statement_date && (
+                    <span className="witness-date">
+                      📅 {new Date(witness.statement_date).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+                
+                {witness.contact_info && (
+                  <div className="witness-contact">
+                    <span className="contact-label">Contact:</span>
+                    <span className="contact-info">{witness.contact_info}</span>
+                  </div>
+                )}
+                
+                <div className="witness-statement">
+                  <p>{witness.statement}</p>
+                </div>
+                
+                <div className="witness-footer">
+                  <small className="witness-timestamp">
+                    Added: {new Date(witness.created_at).toLocaleString()}
+                  </small>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+
       {/* Analysis Tools Section - Now placed above evidence */}
       <section className="analysis-tools-section">
         <div className="section-header">
@@ -662,7 +890,7 @@ export default function CaseDetail() {
 
       {/* Detection Results - Below Evidence */}
       {detectionResults.length > 0 && (
-        <section className="detection-results-section">
+        <section className="detection-results-section" ref={resultsSectionRef}>
           <div className="section-header">
             <h3>🔍 Detection Results</h3>
             <span className="evidence-count">{detectionResults.length} analyzed</span>
@@ -756,14 +984,16 @@ export default function CaseDetail() {
                           )}
                         </div>
                       </div>
-                      <div className="detection-stats-mini">
-                        {detectionData?.image_dimensions && (
+                      {detectionData?.image_dimensions && (
+                        <div className="detection-stats-mini">
                           <div className="stat-mini">
-                            <span className="stat-value-mini">{detectionData.image_dimensions.width}×{detectionData.image_dimensions.height}</span>
+                            <span className="stat-value-mini resolution-display">
+                              {detectionData.image_dimensions.width}×{detectionData.image_dimensions.height}
+                            </span>
                             <span className="stat-label-mini">Resolution</span>
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="detections-grid">
@@ -848,23 +1078,6 @@ export default function CaseDetail() {
                       : 'General model for weapons, evidence, and human elements'}
                   </small>
                 </div>
-
-                {/* <div className="form-group">
-                  <label>Confidence Threshold: {(confidenceThreshold * 100).toFixed(0)}%</label>
-                  <input 
-                    type="range"
-                    min="0.1"
-                    max="0.9"
-                    step="0.05"
-                    value={confidenceThreshold}
-                    onChange={(e) => setConfidenceThreshold(parseFloat(e.target.value))}
-                    disabled={runningDetection}
-                    className="threshold-slider"
-                  />
-                  <small className="form-hint">
-                    Lower values detect more objects but may include false positives
-                  </small>
-                </div> */}
 
                 <div className="form-group">
                   <label>Select Evidence to Analyze:</label>
