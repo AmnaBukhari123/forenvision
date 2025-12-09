@@ -1,7 +1,6 @@
-// Login.jsx
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Shield, Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft } from "lucide-react";
+import { Shield, Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, AlertCircle } from "lucide-react";
 import { login, getCurrentUser } from "../services/api";
 import "./Login.css";
 
@@ -27,7 +26,10 @@ export default function Login() {
         // Just get the user from localStorage
         const user = getCurrentUser();
         
-        setMessage({ type: "success", text: "Login successful! Redirecting..." });
+        setMessage({ 
+          type: "success", 
+          text: "Login successful! Redirecting..." 
+        });
         
         // Navigate based on role
         setTimeout(() => {
@@ -40,14 +42,68 @@ export default function Login() {
       } else {
         // For error responses, we can safely read the body
         const errorData = await response.json();
-        setMessage({ type: "error", text: errorData.detail || "Invalid email or password" });
+        
+        // Custom styling for approval-related messages
+        let messageType = "error";
+        let messageText = errorData.detail || "Invalid email or password";
+        
+        // Check if it's an approval-related message
+        if (errorData.detail && (
+            errorData.detail.includes("pending admin approval") ||
+            errorData.detail.includes("has been rejected") ||
+            errorData.detail.includes("admin approval")
+        )) {
+          messageType = "warning"; // Use warning style for approval messages
+        }
+        
+        setMessage({ 
+          type: messageType, 
+          text: messageText 
+        });
       }
     } catch (error) {
       console.error("Login error:", error);
-      setMessage({ type: "error", text: "Server error. Please try again later." });
+      setMessage({ 
+        type: "error", 
+        text: "Server error. Please try again later." 
+      });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Render different message styles based on type
+  const renderMessage = () => {
+    if (!message.text) return null;
+    
+    if (message.type === "warning") {
+      return (
+        <div className="form-message warning">
+          <AlertCircle size={20} />
+          <div className="message-content">
+            <strong>Account Pending Approval</strong>
+            <p>{message.text}</p>
+            <div className="approval-info">
+              <p>What happens next?</p>
+              <ul>
+                <li>Your account is currently under review by an administrator</li>
+                <li>You'll receive an email notification once approved</li>
+                <li>If rejected, you'll receive an explanation via email</li>
+              </ul>
+              <p className="contact-support">
+                Need help? <Link to="/contact">Contact Support</Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <div className={`form-message ${message.type}`}>
+        {message.text}
+      </div>
+    );
   };
 
   return (
@@ -86,6 +142,15 @@ export default function Login() {
               <span>✓ 24/7 Access to Cases</span>
             </div>
           </div>
+          
+          {/* Information about approval process */}
+          <div className="approval-notice">
+            <h4>For New Investigators:</h4>
+            <p>
+              New investigator accounts require admin approval before accessing the dashboard.
+              You'll receive an email notification once your account is approved.
+            </p>
+          </div>
         </div>
 
         {/* Right Side - Form */}
@@ -96,11 +161,7 @@ export default function Login() {
               <p className="form-subtitle">Enter your credentials to continue</p>
             </div>
 
-            {message.text && (
-              <div className={`form-message ${message.type}`}>
-                {message.text}
-              </div>
-            )}
+            {renderMessage()}
 
             {/* Email */}
             <div className="form-group">
@@ -155,6 +216,9 @@ export default function Login() {
                 />
                 <span>Remember me</span>
               </label>
+              {/* <Link to="/forgot-password" className="forgot-password">
+                Forgot Password?
+              </Link> */}
             </div>
 
             <button type="submit" className="submit-button" disabled={isLoading}>
@@ -174,6 +238,9 @@ export default function Login() {
                 <Link to="/signup" className="footer-link">
                   Create Account
                 </Link>
+              </p>
+              <p className="footer-note">
+                New investigators: Your account will be active after admin approval.
               </p>
             </div>
           </form>

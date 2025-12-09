@@ -73,7 +73,7 @@
 .auth-form {
   max-width: 650px;
   width: 100%;
-  padding: 2rem;
+  padding: 1.5rem;
   background: rgba(30, 41, 59, 0.7);
   border-radius: 1.25rem;
   border: 1px solid rgba(59, 130, 246, 0.2);
@@ -86,7 +86,7 @@
   align-items: center;
   overflow-y: auto;
   max-height: 90vh;
-  gap: 1.25rem;
+  gap: 0.25rem;
 }
 
 .auth-form > * {
@@ -102,24 +102,26 @@
 
 /* ================= FORM HEADER ================= */
 .signup-page .form-header {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0;
 }
 
 .signup-page .form-title {
   font-size: 1.8rem;
   font-weight: 700;
   color: white;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 
 .signup-page .form-subtitle {
   font-size: 0.9rem;
   color: #94a3b8;
+  margin: 0;
 }
 
 /* ================= FORM GROUPS ================= */
 .signup-page .form-group {
   width: 100%;
+  margin-bottom: 0;
 }
 
 .signup-page .form-label {
@@ -127,7 +129,7 @@
   font-size: 0.85rem;
   font-weight: 600;
   color: white;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.4rem;
 }
 
 .signup-page .input-wrapper {
@@ -138,7 +140,7 @@
 
 .signup-page .form-input {
   width: 100%;
-  padding: 0.75rem 1rem;
+  padding: 0.7rem 1rem;
   background: rgba(15, 23, 42, 0.85);
   border: 2px solid rgba(59, 130, 246, 0.2);
   border-radius: 0.5rem;
@@ -163,24 +165,41 @@
   cursor: not-allowed;
 }
 
+/* ================= FORM MESSAGE ================= */
+.form-message {
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.form-message.error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+.form-message.success {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #86efac;
+}
+
 /* ================= TWO-COLUMN LAYOUT ================= */
 .form-fields-wrapper {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.25rem;
+  gap: 0.35rem;
   width: 100%;
 }
 
 .form-column {
   display: flex;
   flex-direction: column;
+  gap: 0.5rem;
 }
 
 .form-column .form-group {
-  margin-bottom: 1rem;
-}
-
-.form-column .form-group:last-child {
   margin-bottom: 0;
 }
 
@@ -188,7 +207,7 @@
 .investigator-fields {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: 0.35rem;
   width: 100%;
   grid-column: 1 / -1;
 }
@@ -213,7 +232,7 @@
 
 /* ================= SUBMIT BUTTON ================= */
 .submit-button {
-  padding: 0.85rem 1.75rem;
+  padding: 0.8rem 1.75rem;
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
   border: none;
@@ -225,7 +244,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  margin-top: 0.5rem;
+  margin-top: 0;
   align-self: center;
   box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
   transition: all 0.3s ease;
@@ -243,18 +262,20 @@
 
 /* ================= FORM FOOTER ================= */
 .form-footer {
-  margin-top: 0.5rem;
+  margin-top: 0;
 }
 
 .footer-text {
   font-size: 0.85rem;
   color: #94a3b8;
+  margin: 0;
 }
 
 .footer-link {
   color: #3b82f6;
   text-decoration: none;
   font-weight: 600;
+  cursor: pointer;
 }
 
 .footer-link:hover {
@@ -266,7 +287,8 @@
 .role-selection {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: 0.35rem;
+  margin-top: -10px;
 }
 
 .role-option {
@@ -282,6 +304,7 @@
   cursor: pointer;
   transition: all 0.3s ease;
   position: relative;
+  margin-top: -30px;
 }
 
 .role-option input[type="radio"] {
@@ -293,6 +316,20 @@
 .role-option.active {
   border-color: #3b82f6;
   background: rgba(59, 130, 246, 0.1);
+}
+
+.role-option span {
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.role-option svg {
+  color: #94a3b8;
+}
+
+.role-option.active svg {
+  color: #3b82f6;
 }
 
 /* ================= RESPONSIVE DESIGN ================= */
@@ -307,7 +344,7 @@
 
 @media (max-width: 640px) {
   .auth-form {
-    padding: 1rem;
+    padding: 1.25rem;
   }
 
   .form-input {

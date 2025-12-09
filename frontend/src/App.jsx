@@ -16,6 +16,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminContactRequests from "./pages/AdminContactRequests";
 import AdminInvestigators from "./pages/AdminInvestigators";
 import AdminCases from "./pages/AdminCases";
+import PendingInvestigators from "./pages/PendingInvestigators"; // Add this import
 
 export default function App() {
   const [authState, setAuthState] = useState({
@@ -116,6 +117,39 @@ export default function App() {
     return children;
   };
 
+  // Enhanced Protected Route that checks investigator approval status
+  const ProtectedRouteWithApproval = ({ children, allowedRoles = null }) => {
+    if (!authState.isLoggedIn) {
+      return <Navigate to="/login" replace />;
+    }
+
+    // Check role permissions
+    if (allowedRoles && !allowedRoles.includes(authState.user?.role)) {
+      if (isAdmin) {
+        return <Navigate to="/dashboard/admin" replace />;
+      } else {
+        return <Navigate to="/dashboard/home" replace />;
+      }
+    }
+
+    // Additional check for investigators: must be approved to access dashboard
+    if (authState.user?.role === "investigator" && authState.user?.is_approved === false) {
+      // Account rejected - redirect to login with message
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      return <Navigate to="/login" replace />;
+    }
+
+    if (authState.user?.role === "investigator" && authState.user?.is_approved === null) {
+      // Account pending approval - redirect to login with message
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      return <Navigate to="/login" replace />;
+    }
+
+    return children;
+  };
+
   return (
     <Router>
       <Routes>
@@ -159,12 +193,13 @@ export default function App() {
         />
 
         {/* Regular User/Investigator Routes with Shared Layout */}
+        {/* Changed to ProtectedRouteWithApproval to check approval status */}
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute allowedRoles={['investigator']}>
+            <ProtectedRouteWithApproval allowedRoles={['investigator']}>
               <DashboardLayout />
-            </ProtectedRoute>
+            </ProtectedRouteWithApproval>
           }
         >
           <Route path="home" element={<DashboardHome />} />
@@ -186,6 +221,7 @@ export default function App() {
           <Route index element={<AdminDashboard />} />
           <Route path="contact-requests" element={<AdminContactRequests />} />
           <Route path="investigators" element={<AdminInvestigators />} />
+          <Route path="pending-investigators" element={<PendingInvestigators />} />
           <Route path="cases" element={<AdminCases />} />
         </Route>
 

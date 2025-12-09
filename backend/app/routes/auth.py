@@ -44,6 +44,7 @@ class UserResponse(BaseModel):
     email: str
     name: Optional[str]
     role: str
+    is_approved: Optional[bool] = None
 
 # --- AUTHENTICATION MIDDLEWARE ---
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -70,7 +71,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         # Verify user still exists in database
         conn = database.get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT id, email, name, roles FROM users WHERE id = %s", (user_id,))
+        cur.execute("SELECT id, email, name, roles, is_approved FROM users WHERE id = %s", (user_id,))
         db_user = cur.fetchone()
         cur.close()
         conn.close()
@@ -87,10 +88,11 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             "id": db_user["id"],
             "email": db_user["email"],
             "name": db_user["name"],
-            "role": db_user["roles"]  # Database has 'roles', return as 'role'
+            "role": db_user["roles"],  # Database has 'roles', return as 'role'
+            "is_approved": db_user.get("is_approved")
         }
         
-        logger.info(f"Authenticated user {user_id} with role: {user_dict['role']}")
+        logger.info(f"Authenticated user {user_id} with role: {user_dict['role']}, approved: {user_dict['is_approved']}")
         return user_dict
         
     except pyjwt.ExpiredSignatureError:
@@ -113,11 +115,13 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         )
 
 
-# --- SIGNUP ---
+# --- SIGNUP with Approval System ---
 @router.post("/signup")
 def signup(user: UserCreate):
     """
     Register a new user (investigator or admin only)
+    - For investigators: is_approved set to NULL initially (pending approval)
+    - For admins: is_approved set to TRUE automatically
     """
     conn = database.get_connection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -145,15 +149,21 @@ def signup(user: UserCreate):
                 detail="Specialization is required for investigators"
             )
 
+        # Set approval status
+        # - Investigators: NULL initially (pending approval)
+        # - Admins: TRUE automatically
+        is_approved_value = None if user.role == 'investigator' else True
+
         # Insert user with all fields (using 'roles' column name)
         cur.execute(
             """
             INSERT INTO users (
                 email, password, name, contact_number, roles,
-                specialization, years_of_experience, certification, department, is_available
+                specialization, years_of_experience, certification, 
+                department, is_available, is_approved
             ) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) 
-            RETURNING id, email, name, roles
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) 
+            RETURNING id, email, name, roles, is_approved
             """,
             (
                 user.email, 
@@ -165,21 +175,32 @@ def signup(user: UserCreate):
                 user.years_of_experience if user.role == 'investigator' else None,
                 user.certification if user.role == 'investigator' else None,
                 user.department if user.role == 'investigator' else None,
-                True if user.role == 'investigator' else None
+                True if user.role == 'investigator' else None,
+                is_approved_value
             ),
         )
         new_user = cur.fetchone()
         conn.commit()
         
-        logger.info(f"New user created: {new_user['email']} with role: {new_user['roles']}")
+        logger.info(f"New user created: {new_user['email']} with role: {new_user['roles']}, approved: {new_user['is_approved']}")
+
+        # Prepare response message based on approval status
+        if user.role == 'investigator':
+            message = "Your investigator account has been created successfully! Your account is pending admin approval. You'll receive an email notification once approved. Until then, you won't be able to access the dashboard."
+            requires_approval = True
+        else:
+            message = "Admin account created successfully!"
+            requires_approval = False
 
         return {
-            "message": "User created successfully",
+            "message": message,
+            "requires_approval": requires_approval,
             "user": {
                 "id": new_user["id"],
                 "email": new_user["email"],
                 "name": new_user["name"],
-                "role": new_user["roles"]  # Return from 'roles' column
+                "role": new_user["roles"],  # Return from 'roles' column
+                "is_approved": new_user["is_approved"]
             }
         }
     except HTTPException:
@@ -193,20 +214,21 @@ def signup(user: UserCreate):
         conn.close()
 
 
-# --- LOGIN ---
+# --- LOGIN with Approval Check ---
 @router.post("/login")
 def login(user: UserLogin):
     """
     Authenticate user and return JWT token with role information
     ✅ FIXED: Properly reads 'roles' from database and creates JWT with 'role'
+    ✅ ADDED: Check investigator approval status before allowing login
     """
     conn = database.get_connection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     try:
-        # ✅ Get user with all fields including 'roles'
+        # ✅ Get user with all fields including 'roles' and 'is_approved'
         cur.execute(
-            "SELECT id, email, name, password, roles, specialization, years_of_experience, certification, department, is_available FROM users WHERE email = %s", 
+            "SELECT id, email, name, password, roles, is_approved, specialization, years_of_experience, certification, department, is_available FROM users WHERE email = %s", 
             (user.email,)
         )
         db_user = cur.fetchone()
@@ -234,12 +256,31 @@ def login(user: UserLogin):
                 detail="Your account is missing a role assignment. Please contact support."
             )
 
+        # ✅ CHECK INVESTIGATOR APPROVAL STATUS
+        if db_user["roles"] == "investigator":
+            is_approved = db_user.get("is_approved")
+            
+            if is_approved is False:
+                logger.warning(f"Rejected investigator attempted login: {user.email}")
+                raise HTTPException(
+                    status_code=403,
+                    detail="Your account has been rejected by admin. Please contact support."
+                )
+            
+            if is_approved is None:
+                logger.warning(f"Pending investigator attempted login: {user.email}")
+                raise HTTPException(
+                    status_code=403,
+                    detail="Your account is pending admin approval. You'll receive an email notification once approved. Until then, you won't be able to access the dashboard."
+                )
+
         # ✅ FIXED: Create JWT token with 'role' field (from database 'roles' column)
         payload = {
             "user_id": db_user["id"],
             "email": db_user["email"],
             "name": db_user.get("name"),
             "role": db_user["roles"],  # ✅ Database 'roles' → JWT 'role'
+            "is_approved": db_user.get("is_approved"),
             "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=8),
         }
         token = pyjwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
@@ -249,7 +290,8 @@ def login(user: UserLogin):
             "id": db_user["id"], 
             "email": db_user["email"],
             "name": db_user.get("name"),
-            "role": db_user["roles"]  # ✅ Return as 'role'
+            "role": db_user["roles"],  # ✅ Return as 'role'
+            "is_approved": db_user.get("is_approved")
         }
 
         # Add investigator-specific data if role is investigator
@@ -262,7 +304,7 @@ def login(user: UserLogin):
                 "is_available": db_user.get("is_available", True)
             }
 
-        logger.info(f"Successful login for user: {user.email} with role: {db_user['roles']}")
+        logger.info(f"Successful login for user: {user.email} with role: {db_user['roles']}, approved: {db_user.get('is_approved')}")
 
         return {
             "user": user_response, 

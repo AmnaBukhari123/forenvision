@@ -160,6 +160,16 @@ export default function AdminDashboard() {
             <span className="action-title">View All Cases</span>
             <ArrowRight size={20} className="action-arrow" />
           </a>
+          <a href="/dashboard/admin/pending-investigators" className="action-card orange-action">
+            <div className="action-icon">
+              <UserCheck size={24} />
+            </div>
+            <span className="action-title">Review Investigator Requests</span>
+            {stats?.pending_investigators > 0 && (
+              <span className="action-badge">{stats.pending_investigators}</span>
+            )}
+            <ArrowRight size={20} className="action-arrow" />
+          </a>
         </div>
       </div>
     </div>

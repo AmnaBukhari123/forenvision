@@ -98,6 +98,10 @@ def get_admin_dashboard_stats(current_user: dict = Depends(require_admin)):
             WHERE created_at >= NOW() - INTERVAL '7 days'
         """)
         recent_cases = cur.fetchone()['count']
+
+        # Pending investigators count
+        cur.execute("SELECT COUNT(*) as count FROM users WHERE roles = 'investigator' AND is_approved IS NULL")
+        pending_investigators = cur.fetchone()['count']
         
         cur.close()
         conn.close()
@@ -111,7 +115,8 @@ def get_admin_dashboard_stats(current_user: dict = Depends(require_admin)):
             "recent_cases": recent_cases,
             "total_users": sum(users_by_role.values()),
             "total_cases": sum(cases_by_status.values()),
-            "total_requests": sum(requests_by_status.values())
+            "total_requests": sum(requests_by_status.values()),
+             "pending_investigators": pending_investigators
         }
     except Exception as e:
         cur.close()
@@ -659,3 +664,121 @@ def list_all_cases(
     conn.close()
     
     return {"cases": cases}
+
+# Add to admin.py after the existing imports and models
+
+class InvestigatorApprovalRequest(BaseModel):
+    is_approved: bool
+    reason: Optional[str] = None
+
+# =============== INVESTIGATOR APPROVAL SYSTEM ===============
+@router.get("/pending-investigators")
+def get_pending_investigators(current_user: dict = Depends(require_admin)):
+    """Get list of investigators pending approval"""
+    conn = database.get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    # FIXED: Changed 'role' to 'roles'
+    cur.execute("""
+        SELECT id, name, email, contact_number, specialization, 
+               years_of_experience, certification, department, 
+               created_at
+        FROM users 
+        WHERE roles = 'investigator' 
+        AND is_approved IS NULL
+        ORDER BY created_at DESC
+    """)
+    
+    pending_investigators = cur.fetchall()
+    cur.close()
+    conn.close()
+    
+    return {"pending_investigators": pending_investigators}
+
+@router.put("/investigators/{investigator_id}/approval")
+def update_investigator_approval(
+    investigator_id: int,
+    approval_data: InvestigatorApprovalRequest,
+    current_user: dict = Depends(require_admin)
+):
+    """Approve or reject an investigator"""
+    conn = database.get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    try:
+        # Check if investigator exists - FIXED: Changed 'role' to 'roles'
+        cur.execute("SELECT id FROM users WHERE id = %s AND roles = 'investigator'", (investigator_id,))
+        investigator = cur.fetchone()
+        
+        if not investigator:
+            raise HTTPException(status_code=404, detail="Investigator not found")
+        
+        # Update approval status
+        cur.execute("""
+            UPDATE users 
+            SET is_approved = %s,
+                updated_at = %s
+            WHERE id = %s
+            RETURNING id, email, name, is_approved, roles
+        """, (approval_data.is_approved, datetime.datetime.now(), investigator_id))
+        
+        updated_investigator = cur.fetchone()
+        
+        # Log the approval/rejection
+        cur.execute("""
+            INSERT INTO approval_logs 
+            (user_id, admin_id, action, reason, created_at)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (
+            investigator_id,
+            current_user['id'],
+            'approved' if approval_data.is_approved else 'rejected',
+            approval_data.reason,
+            datetime.datetime.now()
+        ))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        action = "approved" if approval_data.is_approved else "rejected"
+        return {
+            "investigator": updated_investigator,
+            "message": f"Investigator {action} successfully"
+        }
+    
+    except HTTPException:
+        conn.rollback()
+        cur.close()
+        conn.close()
+        raise
+    except Exception as e:
+        conn.rollback()
+        cur.close()
+        conn.close()
+        logger.exception("Error updating investigator approval")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/investigators/{investigator_id}/approval-history")
+def get_investigator_approval_history(
+    investigator_id: int,
+    current_user: dict = Depends(require_admin)
+):
+    """Get approval history for an investigator"""
+    conn = database.get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    cur.execute("""
+        SELECT al.*, u.name as admin_name, u.email as admin_email
+        FROM approval_logs al
+        LEFT JOIN users u ON al.admin_id = u.id
+        WHERE al.user_id = %s
+        ORDER BY al.created_at DESC
+    """, (investigator_id,))
+    
+    history = cur.fetchall()
+    cur.close()
+    conn.close()
+    
+    return {"approval_history": history}
+

@@ -457,6 +457,25 @@ export async function deleteContactRequest(requestId) {
   return res;
 }
 
+// Investigator Approval Management
+export async function getPendingInvestigators() {
+  const res = await authFetch('/api/v1/admin/pending-investigators');
+  return res;
+}
+
+export async function updateInvestigatorApproval(investigatorId, approvalData) {
+  const res = await authFetch(`/api/v1/admin/investigators/${investigatorId}/approval`, {
+    method: 'PUT',
+    body: JSON.stringify(approvalData),
+  });
+  return res;
+}
+
+export async function getInvestigatorApprovalHistory(investigatorId) {
+  const res = await authFetch(`/api/v1/admin/investigators/${investigatorId}/approval-history`);
+  return res;
+}
+
 // Investigator Management
 export const getInvestigators = async () => {
   const token = localStorage.getItem('token');
