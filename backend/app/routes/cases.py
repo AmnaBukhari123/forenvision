@@ -1,6 +1,7 @@
 # app/routes/cases.py - WITH ENHANCED DEBUGGING AND WITNESS STATEMENTS
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
+from werkzeug.utils import secure_filename
 from pydantic import BaseModel
 from typing import Optional, List
 import datetime
@@ -380,12 +381,20 @@ async def upload_evidence(
             raise HTTPException(status_code=404, detail="Case not found")
         
         # Use numeric ID in filename
-        original_filename = os.path.basename(file.filename)
+        original_filename = secure_filename(file.filename)
 
         filename = f"case_{case_id}_{int(datetime.datetime.utcnow().timestamp())}_{original_filename}"
         path = os.path.join(UPLOAD_FOLDER, filename)
 
-        with open(path, "wb") as f:
+        # Normalize and validate path
+        normalized_upload_folder = os.path.abspath(UPLOAD_FOLDER)
+        normalized_path = os.path.abspath(os.path.normpath(path))
+
+        if not normalized_path.startswith(normalized_upload_folder + os.sep):
+            logger.warning(f"Evidence file path escape attempt: {normalized_path}")
+            raise HTTPException(status_code=400, detail="Invalid file path")
+
+        with open(normalized_path, "wb") as f:
             f.write(await file.read())
         
         # Insert evidence with user_id
