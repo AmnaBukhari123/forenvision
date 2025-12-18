@@ -380,9 +380,11 @@ async def upload_evidence(
             raise HTTPException(status_code=404, detail="Case not found")
         
         # Use numeric ID in filename
-        filename = f"case_{case_id}_{int(datetime.datetime.utcnow().timestamp())}_{file.filename}"
+        original_filename = os.path.basename(file.filename)
+
+        filename = f"case_{case_id}_{int(datetime.datetime.utcnow().timestamp())}_{original_filename}"
         path = os.path.join(UPLOAD_FOLDER, filename)
-        
+
         with open(path, "wb") as f:
             f.write(await file.read())
         
