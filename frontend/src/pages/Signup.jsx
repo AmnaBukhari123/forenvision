@@ -188,7 +188,7 @@ export default function Signup() {
           </div>
              {" "}
         </div>
-            {/* Form Fields */}   {" "}
+            {/* Form Fields */}  {" "}
         <div className="form-fields-wrapper">
                {" "}
           <div className="form-column">
@@ -446,7 +446,7 @@ export default function Signup() {
           </p>
              {" "}
         </div>
-         {" "}
+         {" "}
       </form>
     </div>
   );
