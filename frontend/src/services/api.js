@@ -1,20 +1,16 @@
 // services/api.js
 const BASE = "http://127.0.0.1:8000";
 
-// Flag to prevent alert during intentional logout
 let isLoggingOut = false;
 
-// Helper to dispatch auth change events
 const dispatchAuthChange = () => {
   window.dispatchEvent(new Event('authChange'));
 };
 
-// Helper function to get token from localStorage
 const getToken = () => {
   return localStorage.getItem('token');
 };
 
-// Helper function to make authenticated requests
 const authFetch = async (url, options = {}) => {
   const token = getToken();
   
@@ -39,7 +35,6 @@ const authFetch = async (url, options = {}) => {
       localStorage.removeItem('user');
       dispatchAuthChange();
       
-      // Only show alert if this is NOT an intentional logout
       if (!isLoggingOut) {
         alert('Your session has expired. Please log in again.');
       }
@@ -54,7 +49,6 @@ const authFetch = async (url, options = {}) => {
       localStorage.removeItem('user');
       dispatchAuthChange();
       
-      // Only show alert if this is NOT an intentional logout
       if (!isLoggingOut) {
         alert('Your session is outdated. Please log in again.');
       }
@@ -70,7 +64,6 @@ const authFetch = async (url, options = {}) => {
   }
 };
 
-// For file uploads (FormData)
 const authFetchFormData = async (url, formData) => {
   const token = getToken();
   
@@ -108,100 +101,73 @@ const authFetchFormData = async (url, formData) => {
 
 // =============== CASE ENDPOINTS ===============
 export async function createCase(payload) {
-  const res = await authFetch('/api/v1/cases', {
+  return authFetch('/api/v1/cases', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
-  return res;
 }
 
 export async function listCases(params = {}) {
   const qs = new URLSearchParams(params).toString();
-  const res = await authFetch(`/api/v1/cases${qs ? '?' + qs : ''}`);
-  return res;
+  return authFetch(`/api/v1/cases${qs ? '?' + qs : ''}`);
 }
 
 export async function updateCase(caseId, updates) {
-  const res = await authFetch(`/api/v1/cases/${caseId}`, {
+  return authFetch(`/api/v1/cases/${caseId}`, {
     method: 'PUT',
     body: JSON.stringify(updates),
   });
-  return res;
 }
 
 export async function getCase(caseId) {
-  const res = await authFetch(`/api/v1/cases/${caseId}`);
-  return res;
+  return authFetch(`/api/v1/cases/${caseId}`);
 }
 
 export async function deleteCase(caseId) {
-  const res = await authFetch(`/api/v1/cases/${caseId}`, { 
-    method: 'DELETE' 
-  });
-  return res;
+  return authFetch(`/api/v1/cases/${caseId}`, { method: 'DELETE' });
 }
 
 export async function acceptCase(caseId, acceptanceData) {
-  const res = await authFetch(`/api/v1/cases/${caseId}/accept`, {
+  return authFetch(`/api/v1/cases/${caseId}/accept`, {
     method: 'POST',
     body: JSON.stringify(acceptanceData),
   });
-  return res;
 }
 
 export async function uploadEvidence(caseId, file) {
   const formData = new FormData();
   formData.append('file', file);
-  const res = await authFetchFormData(`/api/v1/cases/${caseId}/evidence`, formData);
-  return res;
+  return authFetchFormData(`/api/v1/cases/${caseId}/evidence`, formData);
 }
 
 export async function deleteEvidence(evidenceId) {
-  const res = await authFetch(`/api/v1/evidence/${evidenceId}`, {
-    method: 'DELETE',
-  });
-  return res;
+  return authFetch(`/api/v1/evidence/${evidenceId}`, { method: 'DELETE' });
 }
 
 // =============== WITNESS STATEMENT ENDPOINTS ===============
 export async function getWitnessStatements(caseId) {
-  const res = await authFetch(`/api/v1/cases/${caseId}/witness-statements`);
-  return res;
+  return authFetch(`/api/v1/cases/${caseId}/witness-statements`);
 }
 
 export async function addWitnessStatement(caseId, witnessData) {
-  const res = await authFetch(`/api/v1/cases/${caseId}/witness-statements`, {
+  return authFetch(`/api/v1/cases/${caseId}/witness-statements`, {
     method: 'POST',
     body: JSON.stringify(witnessData),
   });
-  return res;
 }
 
 export async function updateWitnessStatement(statementId, witnessData) {
-  const res = await authFetch(`/api/v1/witness-statements/${statementId}`, {
+  return authFetch(`/api/v1/witness-statements/${statementId}`, {
     method: 'PUT',
     body: JSON.stringify(witnessData),
   });
-  return res;
 }
 
 export async function deleteWitnessStatement(statementId) {
-  const res = await authFetch(`/api/v1/witness-statements/${statementId}`, {
-    method: 'DELETE',
-  });
-  return res;
+  return authFetch(`/api/v1/witness-statements/${statementId}`, { method: 'DELETE' });
 }
 
 // =============== OBJECT DETECTION ENDPOINTS ===============
-
-/**
- * Run object detection on evidence images
- * @param {number} caseId - The case ID
- * @param {Object} options - Detection options
- * @param {number} [options.evidenceId] - Specific evidence ID (optional)
- * @param {string} [options.modelType] - Model type: "crime_scene" or "blood" (default: "crime_scene")
- * @param {number} [options.confThreshold] - Confidence threshold (default: 0.25)
- */
 export async function runObjectDetection(caseId, options = {}) {
   const { evidenceId = null, modelType = "crime_scene", confThreshold = 0.25 } = options;
   
@@ -214,162 +180,155 @@ export async function runObjectDetection(caseId, options = {}) {
     payload.evidence_id = evidenceId;
   }
 
-  const res = await authFetch(`/api/v1/cases/${caseId}/run_object_detection`, {
+  return authFetch(`/api/v1/cases/${caseId}/run_object_detection`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
-  return res;
 }
 
-/**
- * Get object detection results for a case
- * @param {number} caseId - The case ID
- * @param {string} [modelType] - Filter by model type: "crime_scene" or "blood" (optional)
- */
 export async function getObjectDetectionResults(caseId, modelType = null) {
   let url = `/api/v1/cases/${caseId}/object_detection_results`;
-  
   if (modelType) {
     url += `?model_type=${encodeURIComponent(modelType)}`;
   }
-  
-  const res = await authFetch(url);
-  return res;
+  return authFetch(url);
 }
 
 export async function getDetectionResult(resultId) {
-  const res = await authFetch(`/api/v1/object_detection_results/${resultId}`);
-  return res;
+  return authFetch(`/api/v1/object_detection_results/${resultId}`);
 }
 
 export async function deleteDetectionResult(resultId) {
-  const res = await authFetch(`/api/v1/object_detection_results/${resultId}`, {
-    method: 'DELETE',
-  });
-  return res;
+  return authFetch(`/api/v1/object_detection_results/${resultId}`, { method: 'DELETE' });
 }
 
-/**
- * Delete detection results for a case
- * @param {number} caseId - The case ID
- * @param {string} [modelType] - Delete only results from specific model (optional)
- */
 export async function deleteAllCaseDetectionResults(caseId, modelType = null) {
   let url = `/api/v1/cases/${caseId}/object_detection_results`;
-  
   if (modelType) {
     url += `?model_type=${encodeURIComponent(modelType)}`;
   }
-  
-  const res = await authFetch(url, {
-    method: 'DELETE',
-  });
-  return res;
+  return authFetch(url, { method: 'DELETE' });
 }
 
-/**
- * Get information about available detection models
- */
 export async function getModelsInfo() {
-  const res = await authFetch('/api/v1/models/info');
-  return res;
+  return authFetch('/api/v1/models/info');
 }
 
-// =============== 3D MODEL ENDPOINTS ===============
-export async function create3d(caseId) {
-  const res = await authFetch(`/api/v1/cases/${caseId}/create_3d`, { 
-    method: 'POST' 
+// =============== REPORT ENDPOINTS ===============
+export async function generateCaseReport(caseId) {
+  return authFetch(`/api/v1/cases/${caseId}/report`);
+}
+
+export async function listCaseReports(caseId) {
+  return authFetch(`/api/v1/cases/${caseId}/reports`);
+}
+
+export async function deleteCaseReport(reportId) {
+  return authFetch(`/api/v1/reports/${reportId}`, { method: 'DELETE' });
+}
+
+// =============== 3D RECONSTRUCTION ENDPOINTS ===============
+export async function listCaseImages(caseId) {
+  return authFetch(`/api/v1/reconstruction/case/${caseId}/images`);
+}
+
+export async function startReconstruction(caseId, imageFilename, imageFilepath) {
+  return authFetch(`/api/v1/reconstruction/start`, {
+    method: 'POST',
+    body: JSON.stringify({
+      case_id: parseInt(caseId),
+      image_filename: imageFilename,
+      image_filepath: imageFilepath,
+    }),
   });
-  return res;
+}
+
+export async function getReconstructionStatus(jobId) {
+  return authFetch(`/api/v1/reconstruction/status/${jobId}`);
+}
+
+export async function listCaseJobs(caseId) {
+  return authFetch(`/api/v1/reconstruction/case/${caseId}/jobs`);
+}
+
+export async function deleteReconstructionJob(jobId) {
+  return authFetch(`/api/v1/reconstruction/jobs/${jobId}`, { method: 'DELETE' });
 }
 
 // =============== SETTINGS ENDPOINTS ===============
 export async function getProfile() {
-  const res = await authFetch('/api/v1/settings/profile');
-  return res;
+  return authFetch('/api/v1/settings/profile');
 }
 
 export async function updateProfile(profileData) {
-  const res = await authFetch('/api/v1/settings/profile', {
+  return authFetch('/api/v1/settings/profile', {
     method: 'PUT',
     body: JSON.stringify(profileData),
   });
-  return res;
 }
 
 export async function uploadProfilePicture(file) {
   const formData = new FormData();
   formData.append('file', file);
-  const res = await authFetchFormData('/api/v1/settings/profile/picture', formData);
-  return res;
+  return authFetchFormData('/api/v1/settings/profile/picture', formData);
 }
 
 export async function changePassword(passwordData) {
-  const res = await authFetch('/api/v1/settings/password', {
+  return authFetch('/api/v1/settings/password', {
     method: 'POST',
     body: JSON.stringify(passwordData),
   });
-  return res;
 }
 
 export async function setup2FA(twoFAData) {
-  const res = await authFetch('/api/v1/settings/2fa/setup', {
+  return authFetch('/api/v1/settings/2fa/setup', {
     method: 'POST',
     body: JSON.stringify(twoFAData),
   });
-  return res;
 }
 
 export async function verify2FA(tokenData) {
-  const res = await authFetch('/api/v1/settings/2fa/verify', {
+  return authFetch('/api/v1/settings/2fa/verify', {
     method: 'POST',
     body: JSON.stringify(tokenData),
   });
-  return res;
 }
 
 export async function getApplicationSettings() {
-  const res = await authFetch('/api/v1/settings/application');
-  return res;
+  return authFetch('/api/v1/settings/application');
 }
 
 export async function updateApplicationSettings(settings) {
-  const res = await authFetch('/api/v1/settings/application', {
+  return authFetch('/api/v1/settings/application', {
     method: 'PUT',
     body: JSON.stringify(settings),
   });
-  return res;
 }
 
 export async function getCaseManagementSettings() {
-  const res = await authFetch('/api/v1/settings/case-management');
-  return res;
+  return authFetch('/api/v1/settings/case-management');
 }
 
 export async function updateCaseManagementSettings(settings) {
-  const res = await authFetch('/api/v1/settings/case-management', {
+  return authFetch('/api/v1/settings/case-management', {
     method: 'PUT',
     body: JSON.stringify(settings),
   });
-  return res;
 }
 
 export async function getAllSettings() {
-  const res = await authFetch('/api/v1/settings/all');
-  return res;
+  return authFetch('/api/v1/settings/all');
 }
 
 export async function getNotificationPreferences() {
-  const res = await authFetch('/api/v1/settings/notifications');
-  return res;
+  return authFetch('/api/v1/settings/notifications');
 }
 
 export async function updateNotificationPreferences(preferences) {
-  const res = await authFetch('/api/v1/settings/notifications', {
+  return authFetch('/api/v1/settings/notifications', {
     method: 'PUT',
     body: JSON.stringify(preferences),
   });
-  return res;
 }
 
 // =============== AUTH ENDPOINTS ===============
@@ -382,108 +341,88 @@ export async function login(email, password) {
   
   if (res.ok) {
     const data = await res.json();
-    // Store token and user
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
-    dispatchAuthChange(); // Notify app immediately
+    dispatchAuthChange();
   }
   
   return res;
 }
 
 export async function signup(userData) {
-  const res = await fetch(`${BASE}/api/v1/auth/signup`, {
+  return fetch(`${BASE}/api/v1/auth/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(userData),
   });
-  return res;
 }
 
 // =============== CONTACT FORM ENDPOINTS ===============
 export async function submitContactRequest(formData) {
-  const res = await fetch(`${BASE}/api/v1/contact/submit`, {
+  return fetch(`${BASE}/api/v1/contact/submit`, {
     method: 'POST',
     body: formData,
   });
-  return res;
 }
 
 export async function checkRequestStatus(requestId, email) {
-  const res = await fetch(`${BASE}/api/v1/contact/status/${requestId}?email=${encodeURIComponent(email)}`);
-  return res;
+  return fetch(`${BASE}/api/v1/contact/status/${requestId}?email=${encodeURIComponent(email)}`);
 }
 
 // =============== ADMIN ENDPOINTS ===============
-
-// Dashboard Stats
 export async function getAdminDashboardStats() {
-  const res = await authFetch('/api/v1/admin/dashboard/stats');
-  return res;
+  return authFetch('/api/v1/admin/dashboard/stats');
 }
 
-// Contact Requests Management
 export async function getContactRequests(params = {}) {
   const qs = new URLSearchParams(params).toString();
-  const res = await authFetch(`/api/v1/admin/contact-requests${qs ? '?' + qs : ''}`);
-  return res;
+  return authFetch(`/api/v1/admin/contact-requests${qs ? '?' + qs : ''}`);
 }
 
 export async function getContactRequest(requestId) {
-  const res = await authFetch(`/api/v1/admin/contact-requests/${requestId}`);
-  return res;
+  return authFetch(`/api/v1/admin/contact-requests/${requestId}`);
 }
 
 export async function updateContactRequest(requestId, updateData) {
-  const res = await authFetch(`/api/v1/admin/contact-requests/${requestId}`, {
+  return authFetch(`/api/v1/admin/contact-requests/${requestId}`, {
     method: 'PUT',
     body: JSON.stringify(updateData),
   });
-  return res;
 }
 
 export async function convertContactRequestToCase(requestId, conversionData) {
-  const res = await authFetch(`/api/v1/admin/contact-requests/${requestId}/convert-to-case`, {
+  return authFetch(`/api/v1/admin/contact-requests/${requestId}/convert-to-case`, {
     method: 'POST',
     body: JSON.stringify(conversionData),
   });
-  return res;
 }
 
 export async function deleteContactRequest(requestId) {
-  const res = await authFetch(`/api/v1/admin/contact-requests/${requestId}`, {
-    method: 'DELETE',
-  });
-  return res;
+  return authFetch(`/api/v1/admin/contact-requests/${requestId}`, { method: 'DELETE' });
 }
 
-// Investigator Approval Management
 export async function getPendingInvestigators() {
-  const res = await authFetch('/api/v1/admin/pending-investigators');
-  return res;
+  return authFetch('/api/v1/admin/pending-investigators');
 }
 
 export async function updateInvestigatorApproval(investigatorId, approvalData) {
-  const res = await authFetch(`/api/v1/admin/investigators/${investigatorId}/approval`, {
+  return authFetch(`/api/v1/admin/investigators/${investigatorId}/approval`, {
     method: 'PUT',
     body: JSON.stringify(approvalData),
   });
-  return res;
 }
 
 export async function getInvestigatorApprovalHistory(investigatorId) {
-  const res = await authFetch(`/api/v1/admin/investigators/${investigatorId}/approval-history`);
-  return res;
+  return authFetch(`/api/v1/admin/investigators/${investigatorId}/approval-history`);
 }
 
-// Investigator Management
 export const getInvestigators = async () => {
   const token = localStorage.getItem('token');
   return fetch(`${BASE}/api/v1/admin/investigators`, {
     headers: {
       'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
+      'Content-Type': 'application/json',
+    },
   });
 };
 
@@ -492,8 +431,8 @@ export const getInvestigatorDetails = async (investigatorId) => {
   return fetch(`${BASE}/api//v1/admin/investigators/${investigatorId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
+      'Content-Type': 'application/json',
+    },
   });
 };
 
@@ -503,9 +442,9 @@ export const updateInvestigator = async (investigatorId, data) => {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
   });
 };
 
@@ -515,72 +454,57 @@ export const updateInvestigatorAvailability = async (isAvailable) => {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ is_available: isAvailable })
+    body: JSON.stringify({ is_available: isAvailable }),
   });
 };
 
-// User Management
 export async function getAllUsers(params = {}) {
   const qs = new URLSearchParams(params).toString();
-  const res = await authFetch(`/api/v1/admin/users${qs ? '?' + qs : ''}`);
-  return res;
+  return authFetch(`/api/v1/admin/users${qs ? '?' + qs : ''}`);
 }
 
 export async function updateUserRole(userId, role) {
-  const res = await authFetch(`/api/v1/admin/users/${userId}/role?role=${encodeURIComponent(role)}`, {
+  return authFetch(`/api/v1/admin/users/${userId}/role?role=${encodeURIComponent(role)}`, {
     method: 'PUT',
   });
-  return res;
 }
 
-// Cases Overview (Admin view of all cases)
 export async function getAdminCases(params = {}) {
   const qs = new URLSearchParams(params).toString();
-  const res = await authFetch(`/api/v1/admin/cases${qs ? '?' + qs : ''}`);
-  return res;
+  return authFetch(`/api/v1/admin/cases${qs ? '?' + qs : ''}`);
 }
 
 // =============== UTILITY FUNCTIONS ===============
-
-// Check if user is authenticated
 export function isAuthenticated() {
   return !!getToken();
 }
 
-// Get current user from localStorage
 export const getCurrentUser = () => {
   const userStr = localStorage.getItem('user');
   return userStr ? JSON.parse(userStr) : null;
 };
 
-// Check if user is admin
 export function isAdmin() {
   const user = getCurrentUser();
   return user && user.role === 'admin';
 }
 
-// Check if user is investigator
 export function isInvestigator() {
   const user = getCurrentUser();
   return user && user.role === 'investigator';
 }
 
-// Logout function - FIXED to prevent double alert
 export function logout() {
-  isLoggingOut = true; // Set flag to prevent alerts
+  isLoggingOut = true;
   localStorage.removeItem('token');
   localStorage.removeItem('user');
   dispatchAuthChange();
   window.location.href = '/login';
-  // Reset flag after a short delay (in case redirect is slow)
-  setTimeout(() => {
-    isLoggingOut = false;
-  }, 1000);
+  setTimeout(() => { isLoggingOut = false; }, 1000);
 }
 
-// Update user in localStorage
 export function updateStoredUser(userData) {
   const currentUser = getCurrentUser();
   if (currentUser) {
@@ -590,7 +514,6 @@ export function updateStoredUser(userData) {
   }
 }
 
-// Error handler for API responses
 export async function handleApiResponse(response) {
   if (!response.ok) {
     let errorMessage = 'An error occurred';
@@ -605,7 +528,6 @@ export async function handleApiResponse(response) {
   return response.json();
 }
 
-// Generic API call with error handling
 export async function apiCall(url, options = {}) {
   try {
     const response = await authFetch(url, options);

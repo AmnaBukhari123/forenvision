@@ -10,13 +10,14 @@ import DashboardHome from "./pages/DashboardHome";
 import Cases from "./pages/Cases";
 import CreateCase from "./pages/CreateCase";
 import CaseDetail from "./pages/CaseDetail";
+import Reconstruction3D from "./pages/Reconstruction3d";
 import Settings from "./pages/Settings";
 import AdminLayout from "./components/AdminLayout";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminContactRequests from "./pages/AdminContactRequests";
 import AdminInvestigators from "./pages/AdminInvestigators";
 import AdminCases from "./pages/AdminCases";
-import PendingInvestigators from "./pages/PendingInvestigators"; // Add this import
+import PendingInvestigators from "./pages/PendingInvestigators";
 
 export default function App() {
   const [authState, setAuthState] = useState({
@@ -25,7 +26,6 @@ export default function App() {
     isLoading: true
   });
 
-  // Real-time auth state sync
   useEffect(() => {
     const syncAuthState = () => {
       const token = localStorage.getItem("token");
@@ -34,34 +34,20 @@ export default function App() {
       if (token && userStr) {
         try {
           const user = JSON.parse(userStr);
-          setAuthState({
-            isLoggedIn: true,
-            user: user,
-            isLoading: false
-          });
+          setAuthState({ isLoggedIn: true, user: user, isLoading: false });
         } catch (e) {
           console.error("Failed to parse user data:", e);
           localStorage.removeItem("token");
           localStorage.removeItem("user");
-          setAuthState({
-            isLoggedIn: false,
-            user: null,
-            isLoading: false
-          });
+          setAuthState({ isLoggedIn: false, user: null, isLoading: false });
         }
       } else {
-        setAuthState({
-          isLoggedIn: false,
-          user: null,
-          isLoading: false
-        });
+        setAuthState({ isLoggedIn: false, user: null, isLoading: false });
       }
     };
 
-    // Initial sync
     syncAuthState();
 
-    // Listen for storage changes
     const handleStorageChange = (e) => {
       if (e.key === "token" || e.key === "user" || e.key === null) {
         syncAuthState();
@@ -69,29 +55,17 @@ export default function App() {
     };
 
     window.addEventListener("storage", handleStorageChange);
-
-    // Custom event for same-tab updates
-    const handleAuthChange = () => {
-      syncAuthState();
-    };
-    window.addEventListener("authChange", handleAuthChange);
+    window.addEventListener("authChange", syncAuthState);
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("authChange", handleAuthChange);
+      window.removeEventListener("authChange", syncAuthState);
     };
   }, []);
 
-  // Show loading state
   if (authState.isLoading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        fontSize: '18px' 
-      }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '18px' }}>
         Loading...
       </div>
     );
@@ -99,49 +73,28 @@ export default function App() {
 
   const isAdmin = authState.user?.role === "admin";
 
-  // Protected Route wrapper
   const ProtectedRoute = ({ children, allowedRoles = null }) => {
-    if (!authState.isLoggedIn) {
-      return <Navigate to="/login" replace />;
-    }
-
+    if (!authState.isLoggedIn) return <Navigate to="/login" replace />;
     if (allowedRoles && !allowedRoles.includes(authState.user?.role)) {
-      // Redirect based on actual role
-      if (isAdmin) {
-        return <Navigate to="/dashboard/admin" replace />;
-      } else {
-        return <Navigate to="/dashboard/home" replace />;
-      }
+      return <Navigate to={isAdmin ? "/dashboard/admin" : "/dashboard/home"} replace />;
     }
-
     return children;
   };
 
-  // Enhanced Protected Route that checks investigator approval status
   const ProtectedRouteWithApproval = ({ children, allowedRoles = null }) => {
-    if (!authState.isLoggedIn) {
-      return <Navigate to="/login" replace />;
-    }
+    if (!authState.isLoggedIn) return <Navigate to="/login" replace />;
 
-    // Check role permissions
     if (allowedRoles && !allowedRoles.includes(authState.user?.role)) {
-      if (isAdmin) {
-        return <Navigate to="/dashboard/admin" replace />;
-      } else {
-        return <Navigate to="/dashboard/home" replace />;
-      }
+      return <Navigate to={isAdmin ? "/dashboard/admin" : "/dashboard/home"} replace />;
     }
 
-    // Additional check for investigators: must be approved to access dashboard
     if (authState.user?.role === "investigator" && authState.user?.is_approved === false) {
-      // Account rejected - redirect to login with message
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       return <Navigate to="/login" replace />;
     }
 
     if (authState.user?.role === "investigator" && authState.user?.is_approved === null) {
-      // Account pending approval - redirect to login with message
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       return <Navigate to="/login" replace />;
@@ -155,45 +108,23 @@ export default function App() {
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<Landing />} />
-        <Route 
-          path="/login" 
-          element={
-            authState.isLoggedIn ? (
-              <Navigate to={isAdmin ? "/dashboard/admin" : "/dashboard/home"} replace />
-            ) : (
-              <Login />
-            )
-          } 
+        <Route
+          path="/login"
+          element={authState.isLoggedIn ? <Navigate to={isAdmin ? "/dashboard/admin" : "/dashboard/home"} replace /> : <Login />}
         />
-        <Route 
-          path="/signup" 
-          element={
-            authState.isLoggedIn ? (
-              <Navigate to={isAdmin ? "/dashboard/admin" : "/dashboard/home"} replace />
-            ) : (
-              <Signup />
-            )
-          } 
+        <Route
+          path="/signup"
+          element={authState.isLoggedIn ? <Navigate to={isAdmin ? "/dashboard/admin" : "/dashboard/home"} replace /> : <Signup />}
         />
         <Route path="/contact" element={<Contact />} />
 
-        {/* Protected Dashboard Routes */}
+        {/* Dashboard redirect */}
         <Route
           path="/dashboard"
-          element={
-            authState.isLoggedIn ? (
-              <Navigate 
-                to={isAdmin ? "/dashboard/admin" : "/dashboard/home"} 
-                replace 
-              />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
+          element={authState.isLoggedIn ? <Navigate to={isAdmin ? "/dashboard/admin" : "/dashboard/home"} replace /> : <Navigate to="/login" replace />}
         />
 
-        {/* Regular User/Investigator Routes with Shared Layout */}
-        {/* Changed to ProtectedRouteWithApproval to check approval status */}
+        {/* Investigator routes */}
         <Route
           path="/dashboard"
           element={
@@ -206,10 +137,11 @@ export default function App() {
           <Route path="cases" element={<Cases />} />
           <Route path="cases/create" element={<CreateCase />} />
           <Route path="cases/:id" element={<CaseDetail />} />
+          <Route path="cases/:id/reconstruct" element={<Reconstruction3D />} />
           <Route path="settings" element={<Settings />} />
         </Route>
 
-        {/* Admin Routes with Shared Layout */}
+        {/* Admin routes */}
         <Route
           path="/dashboard/admin"
           element={
@@ -225,7 +157,6 @@ export default function App() {
           <Route path="cases" element={<AdminCases />} />
         </Route>
 
-        {/* Catch-all route */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

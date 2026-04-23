@@ -1,8 +1,10 @@
+# backend/app/db/schemas.py
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
 
-# User Schemas
+# ── User ────────────────────────────────────────────────────────────────────
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
@@ -18,7 +20,8 @@ class UserResponse(BaseModel):
     class Config:
         orm_mode = True
 
-# Case Schemas
+# ── Case ─────────────────────────────────────────────────────────────────────
+
 class CaseBase(BaseModel):
     name: str
     description: Optional[str] = None
@@ -43,7 +46,8 @@ class CaseResponse(CaseBase):
     class Config:
         orm_mode = True
 
-# Evidence Schemas
+# ── Evidence ─────────────────────────────────────────────────────────────────
+
 class EvidenceBase(BaseModel):
     filename: str
     filepath: str
@@ -59,7 +63,8 @@ class EvidenceResponse(EvidenceBase):
     class Config:
         orm_mode = True
 
-# Witness Statement Schemas
+# ── Witness Statement ─────────────────────────────────────────────────────────
+
 class WitnessStatementBase(BaseModel):
     witness_name: str
     statement: str
@@ -81,3 +86,30 @@ class WitnessStatementResponse(WitnessStatementBase):
 
     class Config:
         orm_mode = True
+
+# ── Reconstruction ────────────────────────────────────────────────────────────
+
+class ReconstructionStartRequest(BaseModel):
+    """Body sent by the frontend to kick off a job."""
+    case_id: int
+    image_filename: str   # just the filename, e.g. "knife.png"
+    image_filepath: str   # path the server can actually read, e.g. "uploads/knife.png"
+
+class ReconstructionJobResponse(BaseModel):
+    """Returned on job creation and on status polls."""
+    id: int
+    case_id: int
+    image_filename: str
+    status: str           # pending | running | done | failed
+    progress: int         # 0-100
+    output_path: Optional[str] = None
+    error_message: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+class ReconstructionJobListResponse(BaseModel):
+    """All jobs for a given case."""
+    jobs: List[ReconstructionJobResponse]
