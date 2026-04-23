@@ -5,7 +5,7 @@ import os
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_NAME = os.getenv("DB_NAME", "forenvision")
 DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASS = os.getenv("DB_PASS", "ham12514113")
+DB_PASS = os.getenv("DB_PASS", "Postgres")
 
 def get_connection():
     return psycopg2.connect(
