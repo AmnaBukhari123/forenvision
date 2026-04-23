@@ -178,7 +178,8 @@ export default function Signup() {
                         <Briefcase size={24} />         {" "}
               <span>Investigator</span>       {" "}
             </label>
-            {/*         <label className={`role-option ${formData.role === 'admin' ? 'active' : ''}`}>
+            {       /*
+            <label className={`role-option ${formData.role === 'admin' ? 'active' : ''}`}>
           <input type="radio" name="role" value="admin" checked={formData.role === 'admin'} onChange={handleChange} disabled={isLoading} />
           <UserCircle size={24} />
           <span>Administrator</span>
