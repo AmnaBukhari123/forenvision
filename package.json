@@ -2,7 +2,4 @@
   "devDependencies": {
     "baseline-browser-mapping": "^2.8.32"
   },
-  "dependencies": {
-    "uvicorn": "^0.0.1-security"
-  }
 }
