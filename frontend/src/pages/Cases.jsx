@@ -12,6 +12,7 @@ export default function Cases() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const currentUser = getCurrentUser();
+  const [message, setMessage] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -36,7 +37,7 @@ export default function Cases() {
 
   useEffect(() => {
     load();
-  }, [tab]);
+  }, [tab, searchQuery]); // ✅ re-run when searchQuery changes too
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -50,8 +51,16 @@ export default function Cases() {
 
   const confirmDelete = async () => {
     const res = await deleteCase(deleteId);
-    if (res.ok) load();
+    if (res.ok) {
+      setMessage("✅ Case deleted successfully");
+      setTimeout(() => setMessage(""), 3000); // disappears after 3 seconds
+      load();
+    } else {
+      setMessage("❌ Failed to delete case");
+      setTimeout(() => setMessage(""), 3000);
+    }
     setShowConfirm(false);
+    setDeleteId(null);
   };
 
   const getStatusBadge = (status) => {
@@ -84,6 +93,22 @@ export default function Cases() {
 
   return (
     <div className="cases-container">
+      {/* ✅ Success/Error Message Banner */}
+      {message && (
+        <div className={`message-banner ${message.startsWith("✅") ? "success" : "error"}`}
+          style={{
+            padding: "12px 20px",
+            marginBottom: "16px",
+            borderRadius: "8px",
+            fontWeight: "500",
+            backgroundColor: message.startsWith("✅") ? "#d1fae5" : "#fee2e2",
+            color: message.startsWith("✅") ? "#065f46" : "#991b1b",
+            border: `1px solid ${message.startsWith("✅") ? "#6ee7b7" : "#fca5a5"}`,
+          }}
+        >
+          {message}
+        </div>
+      )}
       <div className="cases-header">
         <h2>My Cases</h2>
 
@@ -120,8 +145,7 @@ export default function Cases() {
             <button
               type="button"
               onClick={() => {
-                setSearchQuery("");
-                load();
+                setSearchQuery(""); // ✅ useEffect will auto-reload when this clears
               }}
               className="clear-btn"
             >

@@ -10,25 +10,20 @@ logger = logging.getLogger(__name__)
 
 TRIPOSR_PATH = os.environ.get(
     "TRIPOSR_PATH",
-    r"C:\Users\bukha\Documents\project_root\TripoSR",
+    r"D:\ForenVision-Colab\ForenVision-Colab\project_root\TripoSR",
 )
 
 TRIPOSR_PYTHON = os.environ.get(
     "TRIPOSR_PYTHON",
-    r"C:\Users\bukha\Documents\project_root\cleanenv\Scripts\python.exe",
+    r"D:\ForenVision-Colab\ForenVision-Colab\project_root\cleanenv\Scripts\python.exe",
 )
 
 MILESTONES = [
-    ("loading model",        5),
-    ("processing image",    15),
-    ("image encoder",       25),
-    ("generating 3d",       35),
-    ("generating triplane", 40),
-    ("rendering",           50),
-    ("marching cubes",      60),
-    ("extracting mesh",     75),
-    ("saving",              90),
-    ("done",                95),
+    ("initializing model", 10),
+    ("processing images", 20),
+    ("running model", 40),
+    ("extracting mesh", 70),
+    ("exporting mesh", 90),
 ]
 
 
@@ -82,7 +77,7 @@ def run_triposr(
         process = subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,            
             text=True,
             bufsize=1,
         )
@@ -92,6 +87,7 @@ def run_triposr(
 
         for raw_line in process.stdout:
             line = raw_line.strip()
+            print("TRIPOSR:", line)
             if not line:
                 continue
             logger.debug("TripoSR | %s", line)
@@ -112,8 +108,11 @@ def run_triposr(
 
         if process.returncode == 0:
             output_file = _find_output_file(output_dir)
+            if not output_file:
+                on_error("No 3D model file generated")
+                return
             on_progress(100)
-            on_done(output_file or output_dir)
+            on_done(output_file)
         else:
             stderr_output = process.stderr.read()
             on_error(f"TripoSR exited with code {process.returncode}. stderr: {stderr_output}")

@@ -36,6 +36,11 @@ export default function AdminContactRequests() {
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
 
+  // Delete confirmation state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Convert form data
   const [convertData, setConvertData] = useState({
     investigator_id: "",
@@ -110,7 +115,7 @@ export default function AdminContactRequests() {
         setMessage({ type: "success", text: "Investigator assigned successfully" });
         loadRequests();
         if (showModal) {
-          viewRequest(requestId); // Reload details
+          viewRequest(requestId);
         }
       }
     } catch (error) {
@@ -119,19 +124,34 @@ export default function AdminContactRequests() {
     }
   };
 
-  const handleDelete = async (requestId) => {
-    if (!confirm("Are you sure you want to delete this request?")) return;
+  // Opens custom delete confirmation modal
+  const confirmDelete = (requestId) => {
+    setDeleteTargetId(requestId);
+    setShowDeleteModal(true);
+  };
 
+  // Called when user clicks "Yes, Delete" in the modal
+  const handleDelete = async () => {
+    setIsDeleting(true);
     try {
-      const response = await deleteContactRequest(requestId);
+      const response = await deleteContactRequest(deleteTargetId);
       if (response.ok) {
+        setShowDeleteModal(false);
+        setDeleteTargetId(null);
         setMessage({ type: "success", text: "Request deleted successfully" });
         loadRequests();
         if (showModal) setShowModal(false);
+      } else {
+        const data = await response.json();
+        setMessage({ type: "error", text: data.detail || "Failed to delete request" });
+        setShowDeleteModal(false);
       }
     } catch (error) {
       console.error("Failed to delete request:", error);
       setMessage({ type: "error", text: "Failed to delete request" });
+      setShowDeleteModal(false);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -156,19 +176,15 @@ export default function AdminContactRequests() {
 
     try {
       const payload = {
-        contact_request_id: selectedRequest.id,  // Backend requires this!
+        contact_request_id: selectedRequest.id,
         investigator_id: parseInt(convertData.investigator_id),
         case_name: convertData.case_name,
         category: convertData.category,
         priority: convertData.priority
       };
-      
-      console.log("Sending payload:", payload);
-      
-      const response = await convertContactRequestToCase(selectedRequest.id, payload);
 
+      const response = await convertContactRequestToCase(selectedRequest.id, payload);
       const data = await response.json();
-      console.log("Response data:", data);
 
       if (response.ok) {
         setMessage({ type: "success", text: "Successfully converted to case!" });
@@ -176,14 +192,13 @@ export default function AdminContactRequests() {
         setShowModal(false);
         loadRequests();
       } else {
-        // Handle validation errors
         let errorMessage = "Failed to convert to case";
         if (data.detail) {
-          if (typeof data.detail === 'string') {
+          if (typeof data.detail === "string") {
             errorMessage = data.detail;
           } else if (Array.isArray(data.detail)) {
-            errorMessage = data.detail.map(err => err.msg || JSON.stringify(err)).join(', ');
-          } else if (typeof data.detail === 'object') {
+            errorMessage = data.detail.map(err => err.msg || JSON.stringify(err)).join(", ");
+          } else if (typeof data.detail === "object") {
             errorMessage = JSON.stringify(data.detail);
           }
         }
@@ -249,39 +264,20 @@ export default function AdminContactRequests() {
       {/* Filters */}
       <div className="filters-bar">
         <div className="filter-tabs">
-          <button 
-            className={filter === "all" ? "active" : ""}
-            onClick={() => setFilter("all")}
-          >
+          <button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>
             All Requests
           </button>
-          <button 
-            className={filter === "pending" ? "active" : ""}
-            onClick={() => setFilter("pending")}
-          >
-            <Clock size={16} />
-            Pending
+          <button className={filter === "pending" ? "active" : ""} onClick={() => setFilter("pending")}>
+            <Clock size={16} /> Pending
           </button>
-          <button 
-            className={filter === "reviewing" ? "active" : ""}
-            onClick={() => setFilter("reviewing")}
-          >
-            <Eye size={16} />
-            Reviewing
+          <button className={filter === "reviewing" ? "active" : ""} onClick={() => setFilter("reviewing")}>
+            <Eye size={16} /> Reviewing
           </button>
-          <button 
-            className={filter === "approved" ? "active" : ""}
-            onClick={() => setFilter("approved")}
-          >
-            <CheckCircle size={16} />
-            Approved
+          <button className={filter === "approved" ? "active" : ""} onClick={() => setFilter("approved")}>
+            <CheckCircle size={16} /> Approved
           </button>
-          <button 
-            className={filter === "converted" ? "active" : ""}
-            onClick={() => setFilter("converted")}
-          >
-            <FileText size={16} />
-            Converted
+          <button className={filter === "converted" ? "active" : ""} onClick={() => setFilter("converted")}>
+            <FileText size={16} /> Converted
           </button>
         </div>
       </div>
@@ -338,7 +334,7 @@ export default function AdminContactRequests() {
                   </td>
                   <td>
                     <div className="action-buttons">
-                      <button 
+                      <button
                         className="btn-icon view"
                         onClick={() => viewRequest(request.id)}
                         title="View Details"
@@ -346,7 +342,7 @@ export default function AdminContactRequests() {
                         <Eye size={16} />
                       </button>
                       {request.status === "approved" && (
-                        <button 
+                        <button
                           className="btn-icon convert"
                           onClick={() => openConvertModal(request)}
                           title="Convert to Case"
@@ -354,9 +350,9 @@ export default function AdminContactRequests() {
                           <FileText size={16} />
                         </button>
                       )}
-                      <button 
+                      <button
                         className="btn-icon delete"
-                        onClick={() => handleDelete(request.id)}
+                        onClick={() => confirmDelete(request.id)}
                         title="Delete"
                       >
                         <Trash2 size={16} />
@@ -367,6 +363,54 @@ export default function AdminContactRequests() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* ── Delete Confirmation Modal ── */}
+      {showDeleteModal && (
+        <div className="modal-overlay" onClick={() => !isDeleting && setShowDeleteModal(false)}>
+          <div className="modal-content delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Delete Request</h2>
+              <button
+                className="modal-close"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="delete-confirm-body">
+                <div className="delete-icon-wrapper">
+                  <Trash2 size={40} />
+                </div>
+                <p className="delete-confirm-title">Are you sure?</p>
+                <p className="delete-confirm-text">
+                  This contact request will be permanently deleted. This action cannot be undone.
+                </p>
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  className="btn-action delete"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                >
+                  <Trash2 size={16} />
+                  {isDeleting ? "Deleting..." : "Yes, Delete"}
+                </button>
+                <button
+                  className="btn-action cancel"
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -428,15 +472,15 @@ export default function AdminContactRequests() {
                     <label><Download size={16} /> Evidence Files</label>
                     <div className="evidence-files">
                       {selectedRequest.evidence_files.map((file, index) => (
-                        <a 
-                          key={index} 
+                        <a
+                          key={index}
                           href={`http://127.0.0.1:8000/${file}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="evidence-file-link"
                         >
                           <FileText size={16} />
-                          {file.split('/').pop()}
+                          {file.split("/").pop()}
                         </a>
                       ))}
                     </div>
@@ -470,14 +514,14 @@ export default function AdminContactRequests() {
               <div className="modal-actions">
                 {selectedRequest.status === "pending" && (
                   <>
-                    <button 
+                    <button
                       className="btn-action approve"
                       onClick={() => handleUpdateStatus(selectedRequest.id, "approved")}
                     >
                       <CheckCircle size={16} />
                       Approve
                     </button>
-                    <button 
+                    <button
                       className="btn-action reject"
                       onClick={() => handleUpdateStatus(selectedRequest.id, "rejected")}
                     >
@@ -486,9 +530,9 @@ export default function AdminContactRequests() {
                     </button>
                   </>
                 )}
-              
+
                 {selectedRequest.status === "approved" && selectedRequest.status !== "converted" && (
-                  <button 
+                  <button
                     className="btn-action convert"
                     onClick={() => openConvertModal(selectedRequest)}
                   >
@@ -496,6 +540,17 @@ export default function AdminContactRequests() {
                     Convert to Case
                   </button>
                 )}
+
+                <button
+                  className="btn-action delete"
+                  onClick={() => {
+                    setShowModal(false);
+                    confirmDelete(selectedRequest.id);
+                  }}
+                >
+                  <Trash2 size={16} />
+                  Delete Request
+                </button>
               </div>
             </div>
           </div>
@@ -514,9 +569,9 @@ export default function AdminContactRequests() {
             <div className="modal-body">
               <div className="form-group">
                 <label>Assign Investigator *</label>
-                <select 
+                <select
                   value={convertData.investigator_id}
-                  onChange={(e) => setConvertData({...convertData, investigator_id: e.target.value})}
+                  onChange={(e) => setConvertData({ ...convertData, investigator_id: e.target.value })}
                   required
                   className="form-input"
                 >
@@ -531,10 +586,10 @@ export default function AdminContactRequests() {
 
               <div className="form-group">
                 <label>Case Name *</label>
-                <input 
+                <input
                   type="text"
                   value={convertData.case_name}
-                  onChange={(e) => setConvertData({...convertData, case_name: e.target.value})}
+                  onChange={(e) => setConvertData({ ...convertData, case_name: e.target.value })}
                   required
                   className="form-input"
                 />
@@ -542,9 +597,9 @@ export default function AdminContactRequests() {
 
               <div className="form-group">
                 <label>Category</label>
-                <select 
+                <select
                   value={convertData.category}
-                  onChange={(e) => setConvertData({...convertData, category: e.target.value})}
+                  onChange={(e) => setConvertData({ ...convertData, category: e.target.value })}
                   className="form-input"
                 >
                   <option value="General Investigation">General Investigation</option>
@@ -558,9 +613,9 @@ export default function AdminContactRequests() {
 
               <div className="form-group">
                 <label>Priority</label>
-                <select 
+                <select
                   value={convertData.priority}
-                  onChange={(e) => setConvertData({...convertData, priority: e.target.value})}
+                  onChange={(e) => setConvertData({ ...convertData, priority: e.target.value })}
                   className="form-input"
                 >
                   <option value="low">Low</option>
@@ -571,16 +626,12 @@ export default function AdminContactRequests() {
               </div>
 
               <div className="modal-actions">
-                <button 
-                  type="button"
-                  className="btn-action convert"
-                  onClick={handleConvertToCase}
-                >
+                <button type="button" className="btn-action convert" onClick={handleConvertToCase}>
                   <FileText size={16} />
                   Create Case
                 </button>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="btn-action cancel"
                   onClick={() => setShowConvertModal(false)}
                 >

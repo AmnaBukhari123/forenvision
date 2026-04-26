@@ -784,31 +784,25 @@ button:disabled {
 /* Detection Image with Bounding Boxes */
 .detection-image-container {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: #1f2937;
   border-radius: 6px;
   overflow: hidden;
-  min-height: 180px;
-  max-height: 220px;
   width: 400px;
   padding: 4px;
 }
 
 .detection-image-wrapper {
   position: relative;
-  width: 70%;
-  height: 70%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
+  width: 100%;
+  line-height: 0;
 }
 
 .detection-result-image {
+  display: block;
   width: 100%;
   height: auto;
-  max-height: 200px;
+  max-height: 300px;
   object-fit: contain;
   border-radius: 4px;
   border: 1px solid #4b5563;
@@ -880,6 +874,35 @@ button:disabled {
   font-size: 12px;
   font-weight: 500;
 }
+
+.model-info-box {
+  background: #1f2a3a;
+  border: 1px solid #3b4a5a;
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+.model-info-box:hover {
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 1px rgba(74, 144, 226, 0.2);
+}
+
+.model-info-box strong {
+  display: block;
+  color: #ffffff;
+  font-size: 14px;
+  margin-bottom: 2px;   /* 🔽 tighter */
+}
+
+.model-description {
+  font-size: 12px;
+  color: #a8b3c2;
+  margin: 0;
+  white-space: nowrap;        /* 🔥 prevents line break */
+  overflow: hidden;
+  text-overflow: ellipsis;    /* adds ... if too long */
+}
+
 
 .detection-count-badge {
   background: #065f46;
@@ -1102,20 +1125,23 @@ button:disabled {
 .detection-settings {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 3px;
   margin-bottom: 24px;
+  
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
+   margin-bottom: 12px; 
 }
 
 .form-group label {
   font-weight: 600;
   color: #f1f1f1;
   font-size: 14px;
+  margin-bottom: 4px; 
 }
 
 .model-select,
@@ -1656,4 +1682,18 @@ button:disabled {
   .report-modal-content {
     width: 98%;
   }
+
+  .report-renderer-wrap {
+   background: #111827;
+   border: 1px solid #374151;
+   border-radius: 8px;
+   padding: 20px;
+   max-height: 600px;
+   overflow-y: auto;
+ }
+
+  .report-modal-fullscreen .report-renderer-wrap {
+   max-height: none;
+   flex: 1;
+}
 }

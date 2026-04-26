@@ -18,6 +18,14 @@ export default function Contact() {
   const [isLoading, setIsLoading] = useState(false);
   const [requestId, setRequestId] = useState(null);
 
+  const validatePakistaniPhone = (phone) => {
+  if (!phone || phone.trim() === "") return true;
+  const cleaned = phone.replace(/[\s\-]/g, ""); // remove spaces and dashes
+  // Covers: 03XXXXXXXXX (11 digits), +923XXXXXXXXX, 00923XXXXXXXXX, 923XXXXXXXXX
+  const pattern = /^(\+92|0092|92|0)3[0-9]{9}$/;
+  return pattern.test(cleaned);
+  };
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -66,8 +74,17 @@ export default function Contact() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage({ type: "", text: "" });
-    setIsLoading(true);
 
+    // ✅ Pakistan phone validation
+    if (formData.phone && !validatePakistaniPhone(formData.phone)) {
+      setMessage({
+        type: "error",
+        text: "Invalid phone number. Use format: 03XX-XXXXXXX or +923XXXXXXXXX",
+      });
+      return;
+    }
+
+    setIsLoading(true);
     try {
       const submitFormData = new FormData();
       submitFormData.append('name', formData.name);

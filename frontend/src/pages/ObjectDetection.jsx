@@ -49,8 +49,7 @@ const ObjectDetection = ({ caseId, evidence }) => {
         evidenceId = parseInt(selectedEvidence);
       }
 
-      const response = await runObjectDetection(caseId, evidenceId);
-      
+      const response = await runObjectDetection(caseId, evidenceId, "object");      
       setMessage({ 
         type: 'success', 
         text: runOnAll 

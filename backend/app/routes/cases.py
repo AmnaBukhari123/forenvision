@@ -10,6 +10,7 @@ import logging
 import database
 import psycopg2.extras
 from app.routes.auth import get_current_user
+from app.email_service import send_email
 
 router = APIRouter()
 
@@ -161,10 +162,12 @@ def list_cases(
             """
             params = [user_id]
         
+        # ✅ Use if/if not elif so both filters can apply simultaneously
         if status:
             query += " AND c.status = %s" if user_role == "admin" else " AND status = %s"
             params.append(status)
-        elif q:
+
+        if q:
             if user_role == "admin":
                 query += " AND (c.name ILIKE %s OR c.description ILIKE %s)"
             else:
@@ -251,74 +254,119 @@ def get_case(case_id: int, current_user: dict = Depends(get_current_user)):
         cur.close()
         conn.close()
 
+
 @router.put("/cases/{case_id}")
 def update_case(case_id: int, case_update: CaseIn, current_user: dict = Depends(get_current_user)):
-    """Update a case only if it belongs to the authenticated user."""
     conn = database.get_connection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    
+
     try:
         user_id = current_user.get("id")
-        logger.info(f"Updating case {case_id} for user {user_id}")
-        
-        # Check if case exists AND belongs to user
-        cur.execute("SELECT id FROM cases WHERE id = %s AND user_id = %s", 
-                    (case_id, user_id))
-        if not cur.fetchone():
-            logger.warning(f"Case {case_id} not found or access denied for user {user_id}")
+
+        # ✅ GET OLD CASE DATA (IMPORTANT)
+        cur.execute("SELECT * FROM cases WHERE id = %s AND user_id = %s", (case_id, user_id))
+        old_case = cur.fetchone()
+
+        if not old_case:
             raise HTTPException(status_code=404, detail="Case not found")
-        
-        # Build dynamic update query
+
         update_fields = []
         params = []
-        
+
         if case_update.name is not None:
             update_fields.append("name = %s")
             params.append(case_update.name)
+
         if case_update.description is not None:
             update_fields.append("description = %s")
             params.append(case_update.description)
+
         if case_update.incident_date is not None:
             update_fields.append("incident_date = %s")
             params.append(case_update.incident_date)
+
         if case_update.category is not None:
             update_fields.append("category = %s")
             params.append(case_update.category)
+
         if case_update.priority is not None:
             update_fields.append("priority = %s")
             params.append(case_update.priority)
-        if case_update.client is not None:
-            update_fields.append("client = %s")
-            params.append(case_update.client)
+
+        # ✅ DETECT ASSIGNMENT CHANGE
+        investigator_changed = False
         if case_update.investigating_officer is not None:
             update_fields.append("investigating_officer = %s")
             params.append(case_update.investigating_officer)
+
+            if case_update.investigating_officer != old_case["investigating_officer"]:
+                investigator_changed = True
+
+        if case_update.status is not None:
+            update_fields.append("status = %s")
+            params.append(case_update.status)
         
-        update_fields.append("status = %s")
-        params.append(case_update.status if hasattr(case_update, 'status') else 'New')
-        
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No fields to update")
+
         update_fields.append("updated_at = %s")
         params.append(datetime.datetime.now())
-        
+
         params.append(case_id)
         params.append(user_id)
-        
-        query = f"UPDATE cases SET {', '.join(update_fields)} WHERE id = %s AND user_id = %s RETURNING *"
-        
+
+        query = f"""
+            UPDATE cases 
+            SET {', '.join(update_fields)} 
+            WHERE id = %s AND user_id = %s 
+            RETURNING *
+        """
+
         cur.execute(query, tuple(params))
         updated_case = cur.fetchone()
         conn.commit()
-        
-        logger.info(f"Case {case_id} updated successfully")
+
+        # =========================
+        # ✅ EMAIL LOGIC STARTS HERE
+        # =========================
+
+        # ✅ EMAIL - Case Updated
+        try:
+            cur.execute("""
+                SELECT email, name, email_notifications 
+                FROM users WHERE id = %s
+            """, (user_id,))
+            investigator = cur.fetchone()
+            
+            if investigator and investigator.get('email_notifications', True):
+                send_email(
+                    to_email=investigator['email'],
+                    subject="Case Updated - Action Required",
+                    body=f"""Hello {investigator['name']},
+
+Your case has been updated.
+
+Case Name: {updated_case['name']}
+Category: {updated_case.get('category', 'N/A')}
+Priority: {updated_case.get('priority', 'N/A')}
+Status: {updated_case.get('status', 'N/A')}
+Updated At: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}
+
+Please log in to your dashboard to review the changes.
+
+Best regards,
+ForenVision Team"""
+                )
+                logger.info(f"Case update email sent to {investigator['email']}")
+        except Exception as email_error:
+            logger.error(f"Failed to send case update email: {str(email_error)}")
+
         return {"case": updated_case}
-        
-    except HTTPException:
-        conn.rollback()
-        raise
+
     except Exception as e:
         conn.rollback()
-        logger.exception(f"Error updating case {case_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error updating case: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
     finally:
         cur.close()
         conn.close()
@@ -333,14 +381,50 @@ def delete_case(case_id: int, current_user: dict = Depends(get_current_user)):
         user_id = current_user.get("id")
         logger.info(f"Deleting case {case_id} for user {user_id}")
         
+        # ✅ Fetch case details BEFORE deleting for the email
+        cur.execute("SELECT * FROM cases WHERE id = %s AND user_id = %s", (case_id, user_id))
+        case_to_delete = cur.fetchone()
+        
+        if not case_to_delete:
+            logger.warning(f"Case {case_id} not found or access denied for user {user_id}")
+            raise HTTPException(status_code=404, detail="Case not found")
+        
         cur.execute("DELETE FROM cases WHERE id = %s AND user_id = %s RETURNING id;", 
                     (case_id, user_id))
         deleted = cur.fetchone()
         conn.commit()
         
-        if not deleted:
-            logger.warning(f"Case {case_id} not found or access denied for user {user_id}")
-            raise HTTPException(status_code=404, detail="Case not found")
+        # ✅ Send email after successful delete
+        try:
+            cur.execute("""
+                SELECT email, name, email_notifications 
+                FROM users WHERE id = %s
+            """, (user_id,))
+            investigator = cur.fetchone()
+            
+            if investigator and investigator.get('email_notifications', True):
+                send_email(
+                    to_email=investigator['email'],
+                    subject="Case Deleted - Confirmation",
+                    body=f"""Hello {investigator['name']},
+
+This is a confirmation that the following case has been deleted from the system.
+
+Case ID: #{case_to_delete['id']}
+Case Name: {case_to_delete['name']}
+Category: {case_to_delete.get('category', 'N/A')}
+Priority: {case_to_delete.get('priority', 'N/A')}
+Status at deletion: {case_to_delete.get('status', 'N/A')}
+Deleted At: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}
+
+If you did not perform this action, please contact your administrator immediately.
+
+Best regards,
+ForenVision Team"""
+                )
+                logger.info(f"Case deletion email sent to {investigator['email']}")
+        except Exception as email_error:
+            logger.error(f"Failed to send case deletion email: {str(email_error)}")
         
         logger.info(f"Case {case_id} deleted successfully")
         return {"detail": "Case deleted successfully"}
@@ -587,6 +671,41 @@ def create_witness_statement(
         new_statement = cur.fetchone()
         conn.commit()
         
+        # ✅ EMAIL - Witness Statement Added
+        try:
+            cur.execute("""
+                SELECT u.email, u.name, u.email_notifications
+                FROM users u
+                JOIN cases c ON c.user_id = u.id
+                WHERE c.id = %s
+            """, (case_id,))
+            investigator = cur.fetchone()
+            
+            if investigator and investigator.get('email_notifications', True):
+                send_email(
+                    to_email=investigator['email'],
+                    subject="New Witness Statement Added to Your Case",
+                    body=f"""Hello {investigator['name']},
+
+A new witness statement has been added to your case.
+
+Case ID: {case_id}
+Witness Name: {statement.witness_name}
+Statement Date: {statement.statement_date or 'Not specified'}
+Contact Info: {statement.contact_info or 'Not provided'}
+
+Statement:
+{statement.statement}
+
+Please log in to your dashboard to review it.
+
+Best regards,
+ForenVision Team"""
+                )
+                logger.info(f"Witness statement email sent to {investigator['email']}")
+        except Exception as email_error:
+            logger.error(f"Failed to send witness statement email: {str(email_error)}")
+        
         logger.info(f"Witness statement created successfully: ID {new_statement['id']}")
         return {"witness_statement": new_statement}
         
@@ -781,8 +900,12 @@ def accept_case(
                 WHERE id = %s AND user_id = %s
                 RETURNING *
             """, ('declined', acceptance.rejection_reason, datetime.datetime.now(), case_id, user_id))
-            updated_case = cur.fetchone()
+        
         conn.commit()
+        
+        # ✅ Fetch updated case after commit
+        cur.execute("SELECT * FROM cases WHERE id = %s", (case_id,))
+        updated_case = cur.fetchone()
         
         logger.info(f"Case {case_id} {acceptance.acceptance_status} successfully")
         logger.info(f"New status: {updated_case.get('status')}")

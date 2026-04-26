@@ -1,3 +1,4 @@
+//signup.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -10,6 +11,14 @@ import {
 } from "lucide-react";
 import { signup } from "../services/api";
 import "./Signup.css";
+
+const validatePakistaniPhone = (phone) => {
+  if (!phone || phone.trim() === "") return true;
+  const cleaned = phone.replace(/[\s\-]/g, ""); // remove spaces and dashes
+  // Covers: 03XXXXXXXXX (11 digits), +923XXXXXXXXX, 00923XXXXXXXXX, 923XXXXXXXXX
+  const pattern = /^(\+92|0092|92|0)3[0-9]{9}$/;
+  return pattern.test(cleaned);
+};
 
 export default function Signup() {
   const [formData, setFormData] = useState({
@@ -46,11 +55,20 @@ export default function Signup() {
       });
     if (formData.password !== formData.confirmPassword)
       return setMessage({ type: "error", text: "Passwords do not match" });
+
+    // ✅ Pakistan phone validation
+    if (formData.contactNumber && !validatePakistaniPhone(formData.contactNumber))
+      return setMessage({
+        type: "error",
+        text: "Invalid phone number. Use format: 03XX-XXXXXXX or +923XXXXXXXXX",
+      });
+
     if (formData.role === "investigator" && !formData.specialization.trim())
       return setMessage({
         type: "error",
         text: "Specialization is required for investigators",
       });
+
     setMessage({ type: "", text: "" });
     return true;
   };

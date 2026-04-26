@@ -169,10 +169,9 @@ export async function deleteWitnessStatement(statementId) {
 
 // =============== OBJECT DETECTION ENDPOINTS ===============
 export async function runObjectDetection(caseId, options = {}) {
-  const { evidenceId = null, modelType = "crime_scene", confThreshold = 0.25 } = options;
+  const { evidenceId = null, confThreshold = 0.25 } = options;
   
   const payload = {
-    model_type: modelType,
     conf_threshold: confThreshold,
   };
   
@@ -186,12 +185,8 @@ export async function runObjectDetection(caseId, options = {}) {
   });
 }
 
-export async function getObjectDetectionResults(caseId, modelType = null) {
-  let url = `/api/v1/cases/${caseId}/object_detection_results`;
-  if (modelType) {
-    url += `?model_type=${encodeURIComponent(modelType)}`;
-  }
-  return authFetch(url);
+export async function getObjectDetectionResults(caseId) {
+  return authFetch(`/api/v1/cases/${caseId}/object_detection_results`);
 }
 
 export async function getDetectionResult(resultId) {
@@ -202,11 +197,9 @@ export async function deleteDetectionResult(resultId) {
   return authFetch(`/api/v1/object_detection_results/${resultId}`, { method: 'DELETE' });
 }
 
-export async function deleteAllCaseDetectionResults(caseId, modelType = null) {
-  let url = `/api/v1/cases/${caseId}/object_detection_results`;
-  if (modelType) {
-    url += `?model_type=${encodeURIComponent(modelType)}`;
-  }
+export async function deleteAllCaseDetectionResults(caseId) {
+  const url = `/api/v1/cases/${caseId}/object_detection_results`;
+
   return authFetch(url, { method: 'DELETE' });
 }
 

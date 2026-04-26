@@ -9,8 +9,7 @@ import database
 import psycopg2.extras
 from psycopg2.extras import Json
 from app.routes.auth import get_current_user
-from app.ml.model_service import blood_detector, crimescene_detector, detect_with_model
-
+from app.ml.model_service import detect
 router = APIRouter()
 
 # Configure logger for this module
@@ -121,10 +120,8 @@ async def run_object_detection(case_id: int, request: ObjectDetectionRequest, cu
                 continue
 
             try:
-                # Run the appropriate model
-                detection_result = detect_with_model(
-                    evidence_path, 
-                    model_type=model_type,
+                detection_result = detect(
+                    evidence_path,
                     conf_threshold=request.conf_threshold
                 )
 
@@ -444,16 +441,9 @@ def get_models_info(current_user: dict = Depends(get_current_user)):
             {
                 "type": "crime_scene",
                 "name": "Crime Scene Detection",
-                "description": "Detects 13 types of crime scene objects including evidence, weapons, and human elements",
-                "classes": crimescene_detector.class_names,
-                "categories": list(crimescene_detector.category_mapping.keys())
-            },
-            {
-                "type": "blood",
-                "name": "Blood Detection",
-                "description": "Specialized detection for blood and bloodstain evidence",
-                "classes": blood_detector.class_names,
-                "categories": list(blood_detector.category_mapping.keys())
+                "description": "Detects weapons, blood evidence, glass, and human presence in crime scenes",
+                "classes": ['Blood', 'Finger-print', 'Glass', 'Hammer', 'Handgun', 'Person', 'Knife', 'Shotgun'],
+                "categories": ["Biological Evidence", "Trace Evidence", "Physical Evidence", "Weapons", "Human Presence"]
             }
         ]
     }

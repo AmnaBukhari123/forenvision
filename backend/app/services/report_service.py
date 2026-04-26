@@ -5,6 +5,9 @@ import requests
 from datetime import datetime
 from database import get_connection
 
+import time
+import random
+
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 
@@ -129,51 +132,64 @@ Files: {', '.join([e.get('filename', '') for e in evidence]) or 'None'}
 {json.dumps(witness_summary, indent=2) if witness_summary else 'No witness statements recorded.'}
 
 === INSTRUCTIONS ===
-Generate a structured forensic report with the following sections:
+Generate a structured forensic report with EXACTLY the sections below.
+
+CRITICAL FORMATTING RULES - YOU MUST FOLLOW THESE:
+- Do NOT use markdown. No **, no *, no #, no backticks, no bullet points with -.
+- Use plain text only.
+- Section headers must be in ALL CAPS followed by dashes on the next line.
+- For witness statements use EXACTLY this format for each witness:
+  Witness Name: [name]
+  Contact: [contact]
+  Date of Statement: [date]
+  Summary: [summary text on one line]
+- For detection results use EXACTLY this format for each evidence file:
+  Evidence File: [filename]
+  Model Used: [model]
+  Object: [object name]
+  Confidence: [XX.X]%
+  Category: [category]
+  Forensic Interpretation: [interpretation text]
+- If there are no witness statements write: No witness statements were recorded for this case.
+- If no detection was performed write: No object detection analysis has been performed.
+
+SECTIONS TO GENERATE:
 
 1. EXECUTIVE SUMMARY
-   - Brief overview of the case and key findings
+Brief overview of the case and key findings.
 
 2. CASE DETAILS
-   - All case metadata presented professionally
+All case metadata presented professionally using Label: Value format.
 
 3. EVIDENCE INVENTORY
-   - List and describe all uploaded evidence files
+List all uploaded evidence files.
 
 4. AI DETECTION ANALYSIS
-   - Summarize each detection result
-   - For each detected object, provide a forensic interpretation
-   - Highlight critical findings (weapons, blood, victims)
-   - Note confidence levels and their significance
+For each detection result follow the exact Evidence File / Object / Confidence / Category / Forensic Interpretation format above.
 
 5. SCENE INTERPRETATION
-   - Based on detected objects, provide a professional forensic interpretation of the scene
-   - Note what the combination of findings may suggest
-   - Identify any patterns or significant object relationships
+Based on detected objects, provide a professional forensic interpretation of the scene.
 
 6. WITNESS TESTIMONY SUMMARY
-   - Summarize each witness statement professionally
-   - Note any key details relevant to the case
+For each witness follow the exact Witness Name / Contact / Date of Statement / Summary format above.
 
 7. 3D RECONSTRUCTION STATUS
-   - State that 3D reconstruction analysis is pending if not available
+State that 3D reconstruction analysis is pending if not available.
 
 8. INVESTIGATOR NOTES
-   - Leave a placeholder section for manual investigator notes
+Leave a placeholder section for manual investigator notes.
 
 9. AI-ASSISTED CONCLUSIONS
-   - Summarize findings and suggest next investigative steps
-   - Include the standard disclaimer that AI findings must be verified by a trained forensic investigator
+Summarize findings and suggest numbered next investigative steps.
+End with: Disclaimer: AI findings must be verified by a trained forensic investigator.
 
-Write in formal forensic report language. Be thorough and professional. Do not use markdown formatting — use plain text with clear section headers using ALL CAPS and dashes."""
+Write in formal forensic report language. Be thorough and professional."""
 
     return prompt
 
-
-def call_gemini_api(prompt: str) -> str:
-    """Send prompt to Gemini and return the response text"""
+def call_gemini_api(prompt: str, retries=5):
     if not GEMINI_API_KEY:
-        raise ValueError("GEMINI_API_KEY environment variable is not set")
+        raise ValueError("GEMINI_API_KEY not set")
 
     headers = {"Content-Type": "application/json"}
 
@@ -181,31 +197,32 @@ def call_gemini_api(prompt: str) -> str:
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
             "temperature": 0.3,
-            "maxOutputTokens": 4096,
+            "maxOutputTokens": 8192,
         }
     }
 
-    response = requests.post(
-        f"{GEMINI_API_URL}?key={GEMINI_API_KEY}",
-        headers=headers,
-        json=payload,
-        timeout=60
-    )
+    for attempt in range(retries):
+        response = requests.post(
+            f"{GEMINI_API_URL}?key={GEMINI_API_KEY}",
+            headers=headers,
+            json=payload,
+            timeout=60
+        )
 
-    if response.status_code != 200:
+        if response.status_code == 200:
+            result = response.json()
+            return result["candidates"][0]["content"]["parts"][0]["text"]
+
+        # retry only for server overload
+        if response.status_code in [429, 503, 500]:
+            wait = (2 ** attempt) + random.uniform(0, 1)
+            print(f"Retrying Gemini... attempt {attempt+1}, waiting {wait:.2f}s")
+            time.sleep(wait)
+            continue
+
         raise Exception(f"Gemini API error {response.status_code}: {response.text}")
 
-    result = response.json()
-    candidates = result.get("candidates", [])
-    if not candidates:
-        raise Exception("No response from Gemini API")
-
-    content = candidates[0].get("content", {})
-    parts = content.get("parts", [])
-    if not parts:
-        raise Exception("Empty response from Gemini API")
-
-    return parts[0].get("text", "")
+    raise Exception("Gemini failed after multiple retries")
 
 
 def save_report_to_db(case_id: int, user_id: int, report_text: str,

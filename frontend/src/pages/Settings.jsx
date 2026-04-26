@@ -34,6 +34,19 @@ export default function Settings() {
   });
   const [notificationsLoading, setNotificationsLoading] = useState(false);
 
+  // ✅ Track original values to detect changes
+  const [originalProfile, setOriginalProfile] = useState({
+    name: '',
+    email: '',
+    contact_number: ''
+  });
+
+  const [originalPasswords] = useState({
+    current_password: '',
+    new_password: '',
+    confirm_password: ''
+  });
+
   // Load profile data
   useEffect(() => {
     loadProfile();
@@ -43,17 +56,18 @@ export default function Settings() {
   const loadProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/settings/profile`, {
+      const res = await fetch(`${API_URL}/api/v1/settings/profile`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
-        setProfile({
+        const loaded = {
           name: data.name || '',
           email: data.email || '',
           contact_number: data.contact_number || ''
-        });
+        };
+        setProfile(loaded);
+        setOriginalProfile(loaded); // ✅ Save original
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -80,7 +94,7 @@ export default function Settings() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/settings/profile`, {
+      const res = await fetch(`${API_URL}/api/v1/settings/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -91,6 +105,8 @@ export default function Settings() {
 
       if (res.ok) {
         setMessage({ type: 'success', text: 'Profile updated successfully!' });
+        setOriginalProfile({ ...profile }); // ✅ Update original after save
+        loadProfile();
       } else {
         const error = await res.json();
         setMessage({ type: 'error', text: error.detail || 'Failed to update profile' });
@@ -120,7 +136,7 @@ export default function Settings() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/settings/password`, {
+      const res = await fetch(`${API_URL}/api/v1/settings/password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -194,6 +210,18 @@ export default function Settings() {
     }
   ];
 
+  // ✅ Check if profile has any changes from original
+  const profileHasChanges = 
+    profile.name !== originalProfile.name ||
+    profile.email !== originalProfile.email ||
+    profile.contact_number !== originalProfile.contact_number;
+
+  // ✅ Check if any password field is filled
+  const passwordHasChanges =
+    passwords.current_password.trim() !== '' ||
+    passwords.new_password.trim() !== '' ||
+    passwords.confirm_password.trim() !== '';
+
   return (
     <div className="settings-page">
       <div className="settings-header">
@@ -266,7 +294,13 @@ export default function Settings() {
                 />
               </div>
 
-              <button type="submit" className="submit-button" disabled={loading}>
+              <button 
+                type="submit" 
+                className="submit-button" 
+                disabled={loading || !profileHasChanges}
+                title={!profileHasChanges ? "No changes to save" : ""}
+                style={{ opacity: !profileHasChanges ? 0.5 : 1, cursor: !profileHasChanges ? "not-allowed" : "pointer" }}
+              >
                 {loading ? 'Saving...' : 'Save Changes'}
               </button>
             </form>
@@ -313,7 +347,13 @@ export default function Settings() {
                 />
               </div>
 
-              <button type="submit" className="submit-button" disabled={loading}>
+              <button 
+                type="submit" 
+                className="submit-button" 
+                disabled={loading || !passwordHasChanges}
+                title={!passwordHasChanges ? "Enter password details first" : ""}
+                style={{ opacity: !passwordHasChanges ? 0.5 : 1, cursor: !passwordHasChanges ? "not-allowed" : "pointer" }}
+              >
                 {loading ? 'Changing...' : 'Change Password'}
               </button>
             </form>

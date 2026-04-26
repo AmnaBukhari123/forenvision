@@ -7,6 +7,7 @@ import psycopg2.extras
 import database
 from app.routes.auth import get_current_user
 import logging
+from app.email_service import send_email
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 logger = logging.getLogger(__name__)
@@ -338,6 +339,39 @@ def convert_contact_request_to_case(
         """, (new_case['id'], convert_data.investigator_id, datetime.datetime.now(), request_id))
         
         conn.commit()
+        
+        # ✅ SEND EMAIL TO INVESTIGATOR IF NOTIFICATIONS ENABLED
+        try:
+            cur.execute("""
+                SELECT email, name, email_notifications 
+                FROM users 
+                WHERE id = %s
+            """, (convert_data.investigator_id,))
+            investigator_user = cur.fetchone()
+            
+            if investigator_user and investigator_user.get('email_notifications', True):
+                send_email(
+                    to_email=investigator_user['email'],
+                    subject="New Case Assigned to You",
+                    body=f"""Hello {investigator_user['name']},
+
+A new case has been assigned to you.
+
+Case Name: {new_case['name']}
+Category: {new_case['category']}
+Priority: {new_case['priority']}
+Client: {new_case['client']}
+
+Please log in to your dashboard to review and accept or decline the case.
+
+Thank you,
+ForenVision Team"""
+                )
+                logger.info(f"Assignment email sent to investigator {investigator_user['email']}")
+        except Exception as email_error:
+            logger.error(f"Failed to send assignment email: {str(email_error)}")
+            # Don't fail the whole request if email fails
+        
         cur.close()
         conn.close()
         
@@ -738,6 +772,43 @@ def update_investigator_approval(
         ))
         
         conn.commit()
+        
+        # ✅ SEND EMAIL TO INVESTIGATOR ABOUT APPROVAL/REJECTION
+        try:
+            if approval_data.is_approved:
+                send_email(
+                    to_email=updated_investigator['email'],
+                    subject="Your Account Has Been Approved ✅",
+                    body=f"""Hello {updated_investigator['name']},
+
+Congratulations! Your investigator account has been approved.
+
+You can now log in to your dashboard and start working on cases.
+
+Welcome to the ForenVision team!
+
+Best regards,
+ForenVision Admin Team"""
+                )
+            else:
+                send_email(
+                    to_email=updated_investigator['email'],
+                    subject="Your Account Application Status",
+                    body=f"""Hello {updated_investigator['name']},
+
+Unfortunately, your investigator account application has been rejected.
+
+{"Reason: " + approval_data.reason if approval_data.reason else "No specific reason was provided."}
+
+If you believe this is a mistake, please contact our support team.
+
+Best regards,
+ForenVision Admin Team"""
+                )
+            logger.info(f"Approval status email sent to {updated_investigator['email']}")
+        except Exception as email_error:
+            logger.error(f"Failed to send approval email: {str(email_error)}")
+
         cur.close()
         conn.close()
         
@@ -745,6 +816,7 @@ def update_investigator_approval(
         return {
             "investigator": updated_investigator,
             "message": f"Investigator {action} successfully"
+        
         }
     
     except HTTPException:

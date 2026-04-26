@@ -7,7 +7,6 @@ import {
   Calendar,
   FolderOpen,
   CheckCircle,
-  Clock,
   ChevronDown,
   ChevronUp,
   Search,
@@ -18,7 +17,6 @@ import {
 import { 
   getInvestigators, 
   getInvestigatorDetails,
-  updateInvestigator 
 } from "../services/api";
 import "./AdminInvestigators.css";
 
@@ -32,6 +30,8 @@ export default function AdminInvestigators() {
   const [message, setMessage] = useState({ type: "", text: "" });
   const [searchQuery, setSearchQuery] = useState("");
   const [filterAvailable, setFilterAvailable] = useState("all");
+  const [isFormDirty, setIsFormDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [editData, setEditData] = useState({
     specialization: "",
@@ -98,45 +98,79 @@ export default function AdminInvestigators() {
       is_available: investigator.is_available !== false
     });
     setEditingInvestigator(investigator);
+    setIsFormDirty(false);
     setShowEditModal(true);
   };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
 
     try {
+      const token = localStorage.getItem("token");
       const updatePayload = {
-        ...editData,
-        years_of_experience: editData.years_of_experience ? parseInt(editData.years_of_experience) : null
+        specialization: editData.specialization || null,
+        years_of_experience: editData.years_of_experience
+          ? parseInt(editData.years_of_experience)
+          : null,
+        certification: editData.certification || null,
+        department: editData.department || null,
+        is_available: editData.is_available,
       };
 
-      const response = await updateInvestigator(editingInvestigator.id, updatePayload);
+      const response = await fetch(
+        `http://localhost:8000/api/v1/admin/investigators/${editingInvestigator.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(updatePayload),
+        }
+      );
+
+      const data = await response.json();
 
       if (response.ok) {
+        setInvestigators((prev) =>
+          prev.map((inv) =>
+            inv.id === editingInvestigator.id
+              ? { ...inv, ...updatePayload }
+              : inv
+          )
+        );
         setMessage({ type: "success", text: "Investigator updated successfully" });
         setShowEditModal(false);
-        loadInvestigators();
+        setIsFormDirty(false);
+      } else {
+        const errorMsg =
+          typeof data.detail === "string"
+            ? data.detail
+            : JSON.stringify(data.detail) || "Failed to update investigator";
+        setMessage({ type: "error", text: errorMsg });
       }
     } catch (error) {
-      console.error("Failed to update investigator:", error);
-      setMessage({ type: "error", text: "Failed to update investigator" });
+      setMessage({ type: "error", text: "Network error: " + error.message });
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const getWorkloadStatus = (activeCases) => {
-    if (activeCases === 0) return { label: "Available", color: "success" };
-    if (activeCases <= 3) return { label: "Light Load", color: "info" };
-    if (activeCases <= 6) return { label: "Moderate Load", color: "warning" };
-    return { label: "Heavy Load", color: "danger" };
+    if (activeCases === 0) return { label: "Free", color: "free" };
+    if (activeCases <= 3) return { label: "Light", color: "light" };
+    if (activeCases <= 6) return { label: "Moderate", color: "moderate" };
+    return { label: "Heavy", color: "heavy" };
   };
 
-  const filteredInvestigators = investigators.filter(inv => {
-    const matchesSearch = 
+  const filteredInvestigators = investigators.filter((inv) => {
+    const matchesSearch =
       (inv.name?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
       (inv.email?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
       (inv.specialization?.toLowerCase() || "").includes(searchQuery.toLowerCase());
 
-    const matchesFilter = 
+    const matchesFilter =
       filterAvailable === "all" ||
       (filterAvailable === "available" && inv.is_available) ||
       (filterAvailable === "unavailable" && !inv.is_available);
@@ -203,7 +237,7 @@ export default function AdminInvestigators() {
                 const workloadStatus = getWorkloadStatus(investigator.active_cases || 0);
                 const isExpanded = expandedInvestigator === investigator.id;
                 const casesData = investigatorCases[investigator.id];
-                
+
                 return (
                   <React.Fragment key={investigator.id}>
                     <tr className="investigator-row">
@@ -260,14 +294,14 @@ export default function AdminInvestigators() {
                       </td>
                       <td>
                         <div className="action-buttons">
-                          <button 
+                          <button
                             className="btn-icon edit"
                             onClick={() => openEditModal(investigator)}
                             title="Edit"
                           >
                             <Edit size={16} />
                           </button>
-                          <button 
+                          <button
                             className="btn-icon toggle"
                             onClick={() => toggleInvestigatorCases(investigator.id)}
                             title={isExpanded ? "Hide Cases" : "View Cases"}
@@ -365,7 +399,10 @@ export default function AdminInvestigators() {
                 <input
                   type="text"
                   value={editData.specialization}
-                  onChange={(e) => setEditData({...editData, specialization: e.target.value})}
+                  onChange={(e) => {
+                    setEditData({ ...editData, specialization: e.target.value });
+                    setIsFormDirty(true);
+                  }}
                   className="form-input"
                   placeholder="e.g., Digital Forensics, Cybercrime"
                 />
@@ -376,7 +413,10 @@ export default function AdminInvestigators() {
                 <input
                   type="number"
                   value={editData.years_of_experience}
-                  onChange={(e) => setEditData({...editData, years_of_experience: e.target.value})}
+                  onChange={(e) => {
+                    setEditData({ ...editData, years_of_experience: e.target.value });
+                    setIsFormDirty(true);
+                  }}
                   className="form-input"
                   placeholder="e.g., 5"
                   min="0"
@@ -388,7 +428,10 @@ export default function AdminInvestigators() {
                 <input
                   type="text"
                   value={editData.certification}
-                  onChange={(e) => setEditData({...editData, certification: e.target.value})}
+                  onChange={(e) => {
+                    setEditData({ ...editData, certification: e.target.value });
+                    setIsFormDirty(true);
+                  }}
                   className="form-input"
                   placeholder="e.g., CFE, CFCE, EnCE"
                 />
@@ -399,7 +442,10 @@ export default function AdminInvestigators() {
                 <input
                   type="text"
                   value={editData.department}
-                  onChange={(e) => setEditData({...editData, department: e.target.value})}
+                  onChange={(e) => {
+                    setEditData({ ...editData, department: e.target.value });
+                    setIsFormDirty(true);
+                  }}
                   className="form-input"
                   placeholder="e.g., Cybercrime Unit, Forensics Division"
                 />
@@ -410,19 +456,26 @@ export default function AdminInvestigators() {
                   <input
                     type="checkbox"
                     checked={editData.is_available}
-                    onChange={(e) => setEditData({...editData, is_available: e.target.checked})}
+                    onChange={(e) => {
+                      setEditData({ ...editData, is_available: e.target.checked });
+                      setIsFormDirty(true);
+                    }}
                   />
                   <span>Available for new cases</span>
                 </label>
               </div>
 
               <div className="modal-actions">
-                <button type="submit" className="btn-action save">
+                <button
+                  type="submit"
+                  className="btn-action save"
+                  disabled={!isFormDirty || isSaving}
+                >
                   <CheckCircle size={16} />
-                  Save Changes
+                  {isSaving ? "Saving..." : "Save Changes"}
                 </button>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="btn-action cancel"
                   onClick={() => setShowEditModal(false)}
                 >

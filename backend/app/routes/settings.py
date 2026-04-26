@@ -25,6 +25,7 @@ os.makedirs(PROFILE_PICTURES_DIR, exist_ok=True)
 # === Profile Settings ===
 @router.get("/profile", response_model=ProfileResponse)
 def get_profile(current_user: dict = Depends(get_current_user)):
+    print("CURRENT USER:", current_user) 
     """Get user profile information"""
     conn = get_connection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -37,7 +38,7 @@ def get_profile(current_user: dict = Depends(get_current_user)):
         user = cur.fetchone()
         
         if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=401, detail="Invalid user or session expired")
             
         return user
     finally:
@@ -159,18 +160,37 @@ def change_password(password_change: PasswordChange, current_user: dict = Depend
         cur.execute("SELECT password FROM users WHERE id = %s", (current_user["id"],))
         user = cur.fetchone()
         
-        if not user or not bcrypt.checkpw(password_change.current_password.encode('utf-8'), user["password"].encode('utf-8')):
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        stored_password = user["password"]
+
+        # Ensure proper format
+        if isinstance(stored_password, str):
+            stored_password = stored_password.encode('utf-8')
+
+        # Check current password
+        if not bcrypt.checkpw(
+            password_change.current_password.encode('utf-8'),
+            stored_password
+        ):
             raise HTTPException(status_code=400, detail="Current password is incorrect")
         
         # Hash new password
-        new_hashed_password = bcrypt.hashpw(password_change.new_password.encode('utf-8'), bcrypt.gensalt()).decode()
+        new_hashed_password = bcrypt.hashpw(
+            password_change.new_password.encode('utf-8'),
+            bcrypt.gensalt()
+        ).decode()
         
         # Update password
-        cur.execute("UPDATE users SET password = %s WHERE id = %s", 
-                   (new_hashed_password, current_user["id"]))
+        cur.execute(
+            "UPDATE users SET password = %s WHERE id = %s",
+            (new_hashed_password, current_user["id"])
+        )
         conn.commit()
         
         return {"message": "Password updated successfully"}
+    
     except HTTPException:
         raise
     except Exception as e:
@@ -345,30 +365,6 @@ def update_case_management_settings(settings: CaseManagementSettings, current_us
         conn.close()
 
 # === All Settings ===
-@router.get("/all", response_model=UserSettingsResponse)
-def get_all_settings(current_user: dict = Depends(get_current_user)):
-    """Get all user settings in one response"""
-    conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    
-    try:
-        # Get profile
-        cur.execute("SELECT id, email, name, contact_number, profile_picture, two_factor_enabled FROM users WHERE id = %s", 
-                   (current_user["id"],))
-        profile = cur.fetchone()
-        
-        # Get settings
-        settings = _get_or_create_user_settings(cur, current_user["id"])
-        conn.commit()  # Commit if new settings were created
-        
-        return UserSettingsResponse(
-            profile=ProfileResponse(**profile),
-            application=ApplicationSettings(**settings),
-            case_management=CaseManagementSettings(**settings)
-        )
-    finally:
-        cur.close()
-        conn.close()
 
 # Helper function
 def _get_or_create_user_settings(cur, user_id):
