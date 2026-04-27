@@ -168,6 +168,17 @@ export default function AdminCases() {
       ) : (
         <div className="cases-table-container">
           <table className="cases-table">
+            <colgroup>
+    <col style={{ width: "6%" }}   />  {/* Case ID */}
+    <col style={{ width: "14%" }}  />  {/* Case Name */}
+    <col style={{ width: "10%" }}  />  {/* Client */}
+    <col style={{ width: "16%" }}  />  {/* Category */}
+    <col style={{ width: "11%" }}  />  {/* Investigator */}
+    <col style={{ width: "10%" }}  />  {/* Priority */}
+    <col style={{ width: "10%" }}  />  {/* Status */}
+    <col style={{ width: "11%" }}  />  {/* Created */}
+    <col style={{ width: "12%" }}  />  {/* Updated */}
+  </colgroup>
             <thead>
               <tr>
                 <th>Case ID</th>
@@ -189,7 +200,7 @@ export default function AdminCases() {
 
                   <td className="case-name-cell">
                     <div className="case-name">
-                      <FolderOpen size={16} />
+            
                       <span>{caseItem.name}</span>
                     </div>
                   </td>

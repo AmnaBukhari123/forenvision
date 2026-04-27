@@ -1,6 +1,18 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Shield, Mail, Phone, MessageSquare, Upload, X, CheckCircle, AlertCircle, FileText, File } from "lucide-react";
+import {
+  Shield,
+  Mail,
+  Phone,
+  MessageSquare,
+  Upload,
+  X,
+  CheckCircle,
+  AlertCircle,
+  FileText,
+  File,
+  User,
+} from "lucide-react";
 import { submitContactRequest } from "../services/api";
 import "./Contact.css";
 
@@ -10,7 +22,7 @@ export default function Contact() {
     email: "",
     phone: "",
     subject: "",
-    message: ""
+    message: "",
   });
   const [files, setFiles] = useState([]);
   const [filePreviews, setFilePreviews] = useState([]);
@@ -19,40 +31,40 @@ export default function Contact() {
   const [requestId, setRequestId] = useState(null);
 
   const validatePakistaniPhone = (phone) => {
-  if (!phone || phone.trim() === "") return true;
-  const cleaned = phone.replace(/[\s\-]/g, ""); // remove spaces and dashes
-  // Covers: 03XXXXXXXXX (11 digits), +923XXXXXXXXX, 00923XXXXXXXXX, 923XXXXXXXXX
-  const pattern = /^(\+92|0092|92|0)3[0-9]{9}$/;
-  return pattern.test(cleaned);
+    if (!phone || phone.trim() === "") return true;
+    const cleaned = phone.replace(/[\s\-]/g, ""); // remove spaces and dashes
+    // Covers: 03XXXXXXXXX (11 digits), +923XXXXXXXXX, 00923XXXXXXXXX, 923XXXXXXXXX
+    const pattern = /^(\+92|0092|92|0)3[0-9]{9}$/;
+    return pattern.test(cleaned);
   };
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
   };
 
   const isImageFile = (file) => {
-    return file.type.startsWith('image/');
+    return file.type.startsWith("image/");
   };
 
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
-    
+
     // Create previews for new files
-    const newPreviews = selectedFiles.map(file => {
+    const newPreviews = selectedFiles.map((file) => {
       if (isImageFile(file)) {
         return {
           file: file,
           url: URL.createObjectURL(file),
-          isImage: true
+          isImage: true,
         };
       } else {
         return {
           file: file,
           url: null,
-          isImage: false
+          isImage: false,
         };
       }
     });
@@ -66,7 +78,7 @@ export default function Contact() {
     if (filePreviews[index]?.url) {
       URL.revokeObjectURL(filePreviews[index].url);
     }
-    
+
     setFiles(files.filter((_, i) => i !== index));
     setFilePreviews(filePreviews.filter((_, i) => i !== index));
   };
@@ -87,54 +99,54 @@ export default function Contact() {
     setIsLoading(true);
     try {
       const submitFormData = new FormData();
-      submitFormData.append('name', formData.name);
-      submitFormData.append('email', formData.email);
-      submitFormData.append('phone', formData.phone);
-      submitFormData.append('subject', formData.subject);
-      submitFormData.append('message', formData.message);
+      submitFormData.append("name", formData.name);
+      submitFormData.append("email", formData.email);
+      submitFormData.append("phone", formData.phone);
+      submitFormData.append("subject", formData.subject);
+      submitFormData.append("message", formData.message);
 
       // Append files
       files.forEach((file) => {
-        submitFormData.append('files', file);
+        submitFormData.append("files", file);
       });
 
       const response = await submitContactRequest(submitFormData);
       const data = await response.json();
 
       if (response.ok) {
-        setMessage({ 
-          type: "success", 
-          text: "Request submitted successfully! Our team will review it shortly." 
+        setMessage({
+          type: "success",
+          text: "Request submitted successfully! Our team will review it shortly.",
         });
         setRequestId(data.request_id);
-        
+
         // Clean up object URLs
-        filePreviews.forEach(preview => {
+        filePreviews.forEach((preview) => {
           if (preview.url) {
             URL.revokeObjectURL(preview.url);
           }
         });
-        
+
         // Reset form
         setFormData({
           name: "",
           email: "",
           phone: "",
           subject: "",
-          message: ""
+          message: "",
         });
         setFiles([]);
         setFilePreviews([]);
       } else {
-        setMessage({ 
-          type: "error", 
-          text: data.detail || "Failed to submit request. Please try again." 
+        setMessage({
+          type: "error",
+          text: data.detail || "Failed to submit request. Please try again.",
         });
       }
     } catch (error) {
-      setMessage({ 
-        type: "error", 
-        text: "Error connecting to server. Please try again." 
+      setMessage({
+        type: "error",
+        text: "Error connecting to server. Please try again.",
       });
     } finally {
       setIsLoading(false);
@@ -142,8 +154,8 @@ export default function Contact() {
   };
 
   const getFileIcon = (fileName) => {
-    const ext = fileName.split('.').pop().toLowerCase();
-    if (['pdf'].includes(ext)) {
+    const ext = fileName.split(".").pop().toLowerCase();
+    if (["pdf"].includes(ext)) {
       return <FileText size={20} className="file-icon-preview" />;
     }
     return <File size={20} className="file-icon-preview" />;
@@ -175,7 +187,8 @@ export default function Contact() {
           <div className="contact-header">
             <h1 className="contact-title">Get in Touch</h1>
             <p className="contact-subtitle">
-              Need forensic investigation services? Submit your request and our team will get back to you.
+              Need forensic investigation services? Submit your request and our
+              team will get back to you.
             </p>
           </div>
 
@@ -198,8 +211,8 @@ export default function Contact() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">
-                    <Mail size={18} />
-                    Full Name *
+                    Full Name 
+                    <User size={18} className="label-icon" />
                   </label>
                   <input
                     type="text"
@@ -215,8 +228,8 @@ export default function Contact() {
 
                 <div className="form-group">
                   <label className="form-label">
-                    <Mail size={18} />
-                    Email Address *
+                    Email Address 
+                    <Mail size={18} className="label-icon" />
                   </label>
                   <input
                     type="email"
@@ -234,8 +247,8 @@ export default function Contact() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">
-                    <Phone size={18} />
                     Phone Number
+                    <Phone size={18} className="label-icon" />
                   </label>
                   <input
                     type="tel"
@@ -250,8 +263,8 @@ export default function Contact() {
 
                 <div className="form-group">
                   <label className="form-label">
-                    <MessageSquare size={18} />
-                    Subject *
+                    Subject 
+                    <MessageSquare size={18} className="label-icon" />
                   </label>
                   <input
                     type="text"
@@ -268,8 +281,8 @@ export default function Contact() {
 
               <div className="form-group">
                 <label className="form-label">
-                  <MessageSquare size={18} />
-                  Message *
+                  Message 
+                  <MessageSquare size={18} className="label-icon" />
                 </label>
                 <textarea
                   name="message"
@@ -285,8 +298,8 @@ export default function Contact() {
 
               <div className="form-group">
                 <label className="form-label">
-                  <Upload size={18} />
                   Upload Evidence (Optional)
+                  <Upload size={18} className="label-icon" />
                 </label>
                 <div className="file-upload-area">
                   <input
@@ -299,9 +312,10 @@ export default function Contact() {
                     accept="image/*,.pdf,.doc,.docx,.zip"
                   />
                   <label htmlFor="file-input" className="file-upload-label">
-                    <Upload size={24} />
-                    <span>Click to upload files</span>
-                    <span className="file-hint">Images, PDFs, Documents (Max 10MB each)</span>
+                    <p className="file-hint">
+                      Click to upload files, Images, PDFs, Documents (Max 10MB
+                      each)
+                    </p>
                   </label>
                 </div>
 
@@ -312,8 +326,8 @@ export default function Contact() {
                         <div className="file-preview-content">
                           {preview.isImage ? (
                             <div className="image-preview-wrapper">
-                              <img 
-                                src={preview.url} 
+                              <img
+                                src={preview.url}
                                 alt={preview.file.name}
                                 className="image-preview"
                               />
@@ -324,7 +338,10 @@ export default function Contact() {
                             </div>
                           )}
                           <div className="file-info">
-                            <span className="file-name" title={preview.file.name}>
+                            <span
+                              className="file-name"
+                              title={preview.file.name}
+                            >
                               {preview.file.name}
                             </span>
                             <span className="file-size">
@@ -347,7 +364,11 @@ export default function Contact() {
                 )}
               </div>
 
-              <button type="submit" className="submit-button" disabled={isLoading}>
+              <button
+                type="submit"
+                className="submit-button"
+                disabled={isLoading}
+              >
                 {isLoading ? (
                   <span className="button-loading">Submitting...</span>
                 ) : (
@@ -381,7 +402,9 @@ export default function Contact() {
                   <div className="step-number">3</div>
                   <div className="step-content">
                     <h4>Contact</h4>
-                    <p>Your investigator will reach out to discuss next steps</p>
+                    <p>
+                      Your investigator will reach out to discuss next steps
+                    </p>
                   </div>
                 </div>
               </div>
@@ -389,7 +412,8 @@ export default function Contact() {
               <div className="info-note">
                 <AlertCircle size={20} />
                 <p>
-                  Save your <strong>Request ID</strong> to track your submission status.
+                  Save your <strong>Request ID</strong> to track your submission
+                  status.
                 </p>
               </div>
             </div>
@@ -412,4 +436,3 @@ export default function Contact() {
     </div>
   );
 }
-

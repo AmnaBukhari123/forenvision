@@ -51,9 +51,13 @@ export default function AdminDashboard() {
   return (
     <div className="admin-dashboard">
       <div className="dashboard-header">
-        <h1 className="dashboard-title">Admin Dashboard</h1>
-        <p className="dashboard-subtitle">System Overview and Management</p>
-      </div>
+  <div className="header-content">
+    <div>
+      <h1 className="dashboard-title">Admin Dashboard</h1>
+      <p className="dashboard-subtitle">System Overview and Management</p>
+    </div>
+  </div>
+</div>
 
       {/* Key Metrics */}
       <div className="metrics-grid">

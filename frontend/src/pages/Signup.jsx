@@ -57,7 +57,10 @@ export default function Signup() {
       return setMessage({ type: "error", text: "Passwords do not match" });
 
     // ✅ Pakistan phone validation
-    if (formData.contactNumber && !validatePakistaniPhone(formData.contactNumber))
+    if (
+      formData.contactNumber &&
+      !validatePakistaniPhone(formData.contactNumber)
+    )
       return setMessage({
         type: "error",
         text: "Invalid phone number. Use format: 03XX-XXXXXXX or +923XXXXXXXXX",
@@ -162,284 +165,152 @@ export default function Signup() {
       </button>
         {/* The form now acts as the main card/content container */} {" "}
       <form onSubmit={handleSubmit} className="auth-form" autoComplete="off">
-           {" "}
-        <div className="form-header">
-                <h2 className="form-title">Create Account</h2>     {" "}
-          <p className="form-subtitle">
-            Get started with your professional account
-          </p>
-             {" "}
-        </div>
-           {" "}
+               {" "}
         {message.text && (
           <div className={`form-message ${message.type}`}>{message.text}</div>
         )}
-            {/* Role Selection */}   {" "}
-        <div className="form-group">
-                <label className="form-label">Account Type</label>     {" "}
-          <div className="role-selection">
-                   {" "}
-            <label
-              className={`role-option ${
-                formData.role === "investigator" ? "active" : ""
-              }`}
-            >
-                       {" "}
+        <div className="form-header">
+          <h2 className="form-title">Create Account</h2>
+
+          <div className="investigator-note">
+            <p>
+              Only verified investigators can access case management features
+            </p>
+          </div>
+        </div>
+        <div className="form-grid">
+          {/* ROW 1 */}
+          <div className="form-group">
+            <label className="form-label">Full Name</label>
+            <input
+              type="text"
+              name="name"
+              placeholder="John Doe"
+              value={formData.name}
+              onChange={handleChange}
+              className="form-input"
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Password</label>
+            <div className="input-wrapper">
               <input
-                type="radio"
-                name="role"
-                value="investigator"
-                checked={formData.role === "investigator"}
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="Enter your password"
+                value={formData.password}
                 onChange={handleChange}
-                disabled={isLoading}
+                className="form-input"
               />
-                        <Briefcase size={24} />         {" "}
-              <span>Investigator</span>       {" "}
-            </label>
-            {       /*
-            <label className={`role-option ${formData.role === 'admin' ? 'active' : ''}`}>
-          <input type="radio" name="role" value="admin" checked={formData.role === 'admin'} onChange={handleChange} disabled={isLoading} />
-          <UserCircle size={24} />
-          <span>Administrator</span>
-        </label> */}
-                 {" "}
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
           </div>
-             {" "}
-        </div>
-            {/* Form Fields */}  {" "}
-        <div className="form-fields-wrapper">
-               {" "}
-          <div className="form-column">
-                   {" "}
-            <div className="form-group">
-                        <label className="form-label">Full Name</label>         {" "}
-              <div className="input-wrapper">
-                           {" "}
-                <input
-                  type="text"
-                  name="name"
-                  placeholder="John Doe"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                  className="form-input"
-                  disabled={isLoading}
-                  autoComplete="off"
-                />
-                         {" "}
-              </div>
-                     {" "}
-            </div>
-                   {" "}
-            <div className="form-group">
-                        <label className="form-label">Email Address</label>     
-                 {" "}
-              <div className="input-wrapper">
-                           {" "}
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="john.doe@example.com"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className="form-input"
-                  disabled={isLoading}
-                  autoComplete="off"
-                />
-                         {" "}
-              </div>
-                     {" "}
-            </div>
-                   {" "}
-            <div className="form-group">
-                       {" "}
-              <label className="form-label">Contact Number (Optional)</label>   
-                   {" "}
-              <div className="input-wrapper">
-                           {" "}
-                <input
-                  type="tel"
-                  name="contactNumber"
-                  placeholder="+1 (555) 123-4567"
-                  value={formData.contactNumber}
-                  onChange={handleChange}
-                  className="form-input"
-                  disabled={isLoading}
-                  autoComplete="off"
-                />
-                         {" "}
-              </div>
-                     {" "}
-            </div>
-                 {" "}
+
+          {/* ROW 2 */}
+          <div className="form-group">
+            <label className="form-label">Email Address</label>
+            <input
+              type="email"
+              name="email"
+              placeholder="john.doe@example.com"
+              value={formData.email}
+              onChange={handleChange}
+              className="form-input"
+            />
           </div>
-               {" "}
-          <div className="form-column">
-                   {" "}
-            <div className="form-group">
-                        <label className="form-label">Password</label>         {" "}
-              <div className="input-wrapper">
-                           {" "}
-                <input
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  placeholder="Enter your password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  className="form-input"
-                  disabled={isLoading}
-                  autoComplete="new-password"
-                />
-                           {" "}
-                <button
-                  type="button"
-                  className="password-toggle"
-                  onClick={() => setShowPassword(!showPassword)}
-                  disabled={isLoading}
-                >
-                               {" "}
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}     
-                       {" "}
-                </button>
-                         {" "}
-              </div>
-                     {" "}
+
+          <div className="form-group">
+            <label className="form-label">Confirm Password</label>
+            <div className="input-wrapper">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                name="confirmPassword"
+                placeholder="Confirm your password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                className="form-input"
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </div>
-                   {" "}
-            <div className="form-group">
-                        <label className="form-label">Confirm Password</label> 
-                     {" "}
-              <div className="input-wrapper">
-                           {" "}
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  name="confirmPassword"
-                  placeholder="Confirm your password"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  required
-                  className="form-input"
-                  disabled={isLoading}
-                  autoComplete="new-password"
-                />
-                           {" "}
-                <button
-                  type="button"
-                  className="password-toggle"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  disabled={isLoading}
-                >
-                               {" "}
-                  {showConfirmPassword ? (
-                    <EyeOff size={20} />
-                  ) : (
-                    <Eye size={20} />
-                  )}
-                             {" "}
-                </button>
-                         {" "}
-              </div>
-                     {" "}
-            </div>
-                 {" "}
           </div>
-             {" "}
-        </div>
-           {" "}
-        {formData.role === "investigator" && (
-          <div className="investigator-fields">
-                   {" "}
-            <div className="form-group">
-                        <label className="form-label">Specialization *</label> 
-                     {" "}
-              <div className="input-wrapper">
-                           {" "}
-                <input
-                  type="text"
-                  name="specialization"
-                  placeholder="e.g., Digital Forensics"
-                  value={formData.specialization}
-                  onChange={handleChange}
-                  required
-                  className="form-input"
-                  disabled={isLoading}
-                  autoComplete="off"
-                />
-                         {" "}
-              </div>
-                     {" "}
-            </div>
-                   {" "}
-            <div className="form-group">
-                       {" "}
-              <label className="form-label">
-                Years of Experience (Optional)
-              </label>
-                       {" "}
-              <div className="input-wrapper">
-                           {" "}
-                <input
-                  type="number"
-                  name="years_of_experience"
-                  placeholder="e.g., 5"
-                  value={formData.years_of_experience}
-                  onChange={handleChange}
-                  className="form-input"
-                  disabled={isLoading}
-                  min="0"
-                  autoComplete="off"
-                />
-                         {" "}
-              </div>
-                     {" "}
-            </div>
-                   {" "}
-            <div className="form-group">
-                       {" "}
-              <label className="form-label">Certification (Optional)</label>   
-                   {" "}
-              <div className="input-wrapper">
-                           {" "}
-                <input
-                  type="text"
-                  name="certification"
-                  placeholder="e.g., CFE"
-                  value={formData.certification}
-                  onChange={handleChange}
-                  className="form-input"
-                  disabled={isLoading}
-                  autoComplete="off"
-                />
-                         {" "}
-              </div>
-                     {" "}
-            </div>
-                   {" "}
-            <div className="form-group">
-                       {" "}
-              <label className="form-label">Department (Optional)</label>       
-               {" "}
-              <div className="input-wrapper">
-                           {" "}
-                <input
-                  type="text"
-                  name="department"
-                  placeholder="e.g., Cybercrime Unit"
-                  value={formData.department}
-                  onChange={handleChange}
-                  className="form-input"
-                  disabled={isLoading}
-                  autoComplete="off"
-                />
-                         {" "}
-              </div>
-                     {" "}
-            </div>
-                 {" "}
+
+          {/* ROW 3 */}
+          <div className="form-group">
+            <label className="form-label">Contact Number</label>
+            <input
+              type="tel"
+              name="contactNumber"
+              placeholder="+92 3XX-XXXXXXX"
+              value={formData.contactNumber}
+              onChange={handleChange}
+              className="form-input"
+            />
           </div>
-        )}
+
+          <div className="form-group">
+            <label className="form-label">Years of Experience</label>
+            <input
+              type="number"
+              name="years_of_experience"
+              placeholder="e.g., 5"
+              value={formData.years_of_experience}
+              onChange={handleChange}
+              className="form-input"
+            />
+          </div>
+
+          {/* ROW 4 */}
+          <div className="form-group">
+            <label className="form-label">Department</label>
+            <input
+              type="text"
+              name="department"
+              placeholder="e.g., Cybercrime Unit"
+              value={formData.department}
+              onChange={handleChange}
+              className="form-input"
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Certification</label>
+            <input
+              type="text"
+              name="certification"
+              placeholder="e.g., CFE"
+              value={formData.certification}
+              onChange={handleChange}
+              className="form-input"
+            />
+          </div>
+
+          {/* ROW 5 (FULL WIDTH) */}
+          <div className="form-group full-width">
+            <label className="form-label">Specialization *</label>
+            <input
+              type="text"
+              name="specialization"
+              placeholder="e.g., Digital Forensics"
+              value={formData.specialization}
+              onChange={handleChange}
+              className="form-input"
+              required
+            />
+          </div>
+        </div>{" "}
            {" "}
         <button type="submit" className="submit-button" disabled={isLoading}>
                {" "}
@@ -463,8 +334,7 @@ export default function Signup() {
                  {" "}
           </p>
              {" "}
-        </div>
-         {" "}
+        </div>{" "}
       </form>
     </div>
   );

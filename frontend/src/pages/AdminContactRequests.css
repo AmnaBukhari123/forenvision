@@ -1,21 +1,21 @@
 .admin-contact-requests {
   padding: 2rem;
   max-width: 1600px;
-  margin: 0 auto;
+  margin-top: 0;
 }
 
 .page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
   margin-bottom: 2rem;
+   margin-top: 0;             /* add this */
+  padding-top: 0; 
 }
 
 .page-title {
   font-size: 2rem;
   font-weight: 700;
   color: white;
-  margin-bottom: 0.5rem;
+  margin: 0 0 0.5rem 0;
+  padding-top: 0;   /* add this */
 }
 
 .page-subtitle {
