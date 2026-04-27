@@ -225,13 +225,14 @@ export async function listCaseImages(caseId) {
   return authFetch(`/api/v1/reconstruction/case/${caseId}/images`);
 }
 
-export async function startReconstruction(caseId, imageFilename, imageFilepath) {
-  return authFetch(`/api/v1/reconstruction/start`, {
+export async function startReconstruction(caseId, imageFilename, imageFilepath, removeBg = true) {
+  return authFetch('/api/v1/reconstruction/start', {
     method: 'POST',
     body: JSON.stringify({
-      case_id: parseInt(caseId),
+      case_id: caseId,
       image_filename: imageFilename,
       image_filepath: imageFilepath,
+      remove_bg: removeBg,
     }),
   });
 }

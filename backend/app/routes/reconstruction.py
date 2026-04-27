@@ -30,6 +30,7 @@ class ReconstructionStartRequest(BaseModel):
     case_id: int
     image_filename: str
     image_filepath: str
+    remove_bg: bool = True          # ← new: default True, frontend can override
 
 
 def _db_update_job(job_id: int, **fields) -> None:
@@ -132,8 +133,10 @@ def start_reconstruction(
         output_dir = os.path.join(OUTPUT_BASE, f"case_{payload.case_id}", f"job_{job_id}")
         os.makedirs(output_dir, exist_ok=True)
 
-        logger.info("Reconstruction job %d created for case %d, image %s",
-                    job_id, payload.case_id, payload.image_filename)
+        logger.info(
+            "Reconstruction job %d created for case %d, image %s (remove_bg=%s)",
+            job_id, payload.case_id, payload.image_filename, payload.remove_bg,
+        )
 
         def on_progress(pct: int) -> None:
             _db_update_job(job_id, status="running", progress=pct)
@@ -153,6 +156,7 @@ def start_reconstruction(
             on_progress=on_progress,
             on_done=on_done,
             on_error=on_error,
+            remove_bg=payload.remove_bg,   # ← pass through
         )
 
         return {"job": dict(job)}
@@ -237,7 +241,6 @@ def delete_job(
 
         _assert_case_access(cur, job["case_id"], current_user)
 
-        # Delete output folder from disk
         job_folder = os.path.join(OUTPUT_BASE, f"case_{job['case_id']}", f"job_{job_id}")
         if os.path.isdir(job_folder):
             shutil.rmtree(job_folder, ignore_errors=True)
