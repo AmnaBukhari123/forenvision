@@ -3,8 +3,8 @@ from email.mime.text import MIMEText
 
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
-EMAIL_ADDRESS = "mahanaveed454@gmail.com"
-EMAIL_PASSWORD = "jfjs wcgr kgpn jcnv"   # NOT normal password!
+EMAIL_ADDRESS = "bukhariamna258@gmail.com"
+EMAIL_PASSWORD = "iyes geot btye xxoz"  
 
 def send_email(to_email: str, subject: str, body: str):
     try:
