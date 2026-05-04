@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, status, WebSocket, WebSocketDisconnect
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
+from dotenv import load_dotenv
 from typing import Optional
 import bcrypt
 import jwt as pyjwt
@@ -9,13 +10,15 @@ import psycopg2.extras
 import database
 import logging
 import json
+import os
 
+load_dotenv()
 # Setup logger
 logger = logging.getLogger("forenvision.auth")
 logging.basicConfig(level=logging.INFO)
 
 # --- CONFIG ---
-SECRET_KEY = "forenvision-super-secret-key-2024-secure"
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ALGORITHM = "HS256"
 security = HTTPBearer()
 
