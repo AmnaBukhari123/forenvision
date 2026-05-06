@@ -47,7 +47,7 @@ def _db_update_job(job_id: int, **fields) -> None:
         )
         conn.commit()
         cur.close()
-        conn.close()
+        database.release_connection(conn)
     except Exception:
         logger.exception("_db_update_job failed for job_id=%d", job_id)
 
@@ -68,7 +68,7 @@ def list_case_images(
     current_user: dict = Depends(get_current_user),
 ):
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     try:
         _assert_case_access(cur, case_id, current_user)
 
@@ -98,7 +98,7 @@ def list_case_images(
         raise HTTPException(status_code=500, detail=f"Error listing images: {str(e)}")
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 
 @router.post("/reconstruction/start")
@@ -107,7 +107,7 @@ def start_reconstruction(
     current_user: dict = Depends(get_current_user),
 ):
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     try:
         _assert_case_access(cur, payload.case_id, current_user)
 
@@ -170,7 +170,7 @@ def start_reconstruction(
         raise HTTPException(status_code=500, detail=f"Error starting reconstruction: {str(e)}")
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 
 @router.get("/reconstruction/status/{job_id}")
@@ -179,7 +179,7 @@ def get_job_status(
     current_user: dict = Depends(get_current_user),
 ):
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     try:
         cur.execute("SELECT * FROM reconstruction_jobs WHERE id = %s", (job_id,))
         job = cur.fetchone()
@@ -196,7 +196,7 @@ def get_job_status(
         raise HTTPException(status_code=500, detail=f"Error fetching job status: {str(e)}")
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 
 @router.get("/reconstruction/case/{case_id}/jobs")
@@ -205,7 +205,7 @@ def list_case_jobs(
     current_user: dict = Depends(get_current_user),
 ):
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     try:
         _assert_case_access(cur, case_id, current_user)
 
@@ -223,7 +223,7 @@ def list_case_jobs(
         raise HTTPException(status_code=500, detail=f"Error listing jobs: {str(e)}")
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 
 @router.delete("/reconstruction/jobs/{job_id}")
@@ -232,7 +232,7 @@ def delete_job(
     current_user: dict = Depends(get_current_user),
 ):
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     try:
         cur.execute("SELECT * FROM reconstruction_jobs WHERE id = %s", (job_id,))
         job = cur.fetchone()
@@ -260,4 +260,4 @@ def delete_job(
         raise HTTPException(status_code=500, detail=f"Error deleting job: {str(e)}")
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)

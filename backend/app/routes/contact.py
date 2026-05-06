@@ -27,7 +27,7 @@ async def submit_contact_request(
     Users can upload evidence files along with their request.
     """
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     try:
         # Save uploaded files
         evidence_files = []
@@ -83,7 +83,7 @@ async def submit_contact_request(
         raise HTTPException(status_code=500, detail=f"Failed to submit request: {str(e)}")
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 @router.get("/status/{request_id}")
 def check_request_status(request_id: int, email: str):
@@ -92,7 +92,7 @@ def check_request_status(request_id: int, email: str):
     by providing request ID and email for verification
     """
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         cur.execute("""
@@ -123,4 +123,4 @@ def check_request_status(request_id: int, email: str):
         }
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)

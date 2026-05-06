@@ -67,11 +67,11 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             )
         
         conn = database.get_connection()
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur = conn.cursor()
         cur.execute("SELECT id, email, name, roles, is_approved FROM users WHERE id = %s", (user_id,))
         db_user = cur.fetchone()
         cur.close()
-        conn.close()
+        database.release_connection(conn)  # ← release here, not get again
         
         if not db_user:
             logger.warning(f"User {user_id} not found in database")
@@ -106,7 +106,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 @router.post("/signup")
 def signup(user: UserCreate):
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
 
     try:
         if user.role not in ['investigator', 'admin']:
@@ -172,14 +172,15 @@ def signup(user: UserCreate):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)  # ← correct
+
 
 
 # --- REST LOGIN (keep for backward compatibility) ---
 @router.post("/login")
 def login(user: UserLogin):
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
 
     try:
         cur.execute(
@@ -240,7 +241,8 @@ def login(user: UserLogin):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)  # ← correct
+
 
 
 # ── NEW: WebSocket login endpoint ──────────────────────────────────────────────
@@ -273,7 +275,7 @@ async def websocket_auth(websocket: WebSocket):
 
                 try:
                     conn = database.get_connection()
-                    cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                    cur  = conn.cursor()
 
                     cur.execute(
                         "SELECT id, email, name, password, roles, is_approved FROM users WHERE email = %s",
@@ -330,7 +332,8 @@ async def websocket_auth(websocket: WebSocket):
                 finally:
                     try:
                         cur.close()
-                        conn.close()
+                        database.release_connection(conn)  # ← correct
+
                     except:
                         pass
 

@@ -22,7 +22,7 @@ def update_investigator_availability(
 ):
     """Update the availability status of the logged-in investigator"""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         # Update the user's availability status
@@ -40,7 +40,7 @@ def update_investigator_availability(
         
         conn.commit()
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         
         return {
             "message": "Availability updated successfully",
@@ -49,7 +49,7 @@ def update_investigator_availability(
     except Exception as e:
         conn.rollback()
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         raise HTTPException(status_code=500, detail=f"Failed to update availability: {str(e)}")
 
 class NotificationSettings(BaseModel):
@@ -62,7 +62,7 @@ def update_notification_settings(
 ):
     """Toggle email notifications on/off"""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         cur.execute("""
@@ -79,7 +79,7 @@ def update_notification_settings(
         
         conn.commit()
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         
         return {
             "message": "Notification settings updated successfully",
@@ -88,5 +88,5 @@ def update_notification_settings(
     except Exception as e:
         conn.rollback()
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         raise HTTPException(status_code=500, detail=f"Failed to update settings: {str(e)}")

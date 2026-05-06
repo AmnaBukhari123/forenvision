@@ -88,6 +88,9 @@ export default function CaseDetail() {
   const [deletingReportId, setDeletingReportId] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [originalForm, setOriginalForm] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null); // add this state at top
+
+  
 
   const load = async () => {
     try {
@@ -340,56 +343,12 @@ export default function CaseDetail() {
   };
 
   const handleDeleteDetectionResult = async (resultId) => {
-    if (
-      !window.confirm("Are you sure you want to delete this detection result?")
-    )
-      return;
-    setDeletingResultId(resultId);
-    try {
-      const response = await deleteDetectionResult(resultId);
-      if (response.ok) {
-        setMessage("Detection result deleted successfully");
-        await loadDetectionResults();
-      } else {
-        const errorData = await response.json();
-        setMessage(
-          "Failed to delete detection result: " +
-            (errorData.detail || "Unknown error"),
-        );
-      }
-    } catch (error) {
-      setMessage("Error deleting detection result: " + error.message);
-    } finally {
-      setDeletingResultId(null);
-    }
-  };
+  setConfirmDelete({ type: 'detection', id: resultId });
+};
 
   const handleDeleteEvidence = async (evidenceId, filename) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete "${filename}"? This will also delete any associated detection results.`,
-      )
-    )
-      return;
-    setDeletingEvidenceId(evidenceId);
-    try {
-      const response = await deleteEvidence(evidenceId);
-      if (response.ok) {
-        setMessage("Evidence deleted successfully");
-        await load();
-      } else {
-        const errorData = await response.json();
-        setMessage(
-          "Failed to delete evidence: " + (errorData.detail || "Unknown error"),
-        );
-      }
-    } catch (error) {
-      setMessage("Error deleting evidence: " + error.message);
-    } finally {
-      setDeletingEvidenceId(null);
-    }
-  };
-
+  setConfirmDelete({ type: 'evidence', id: evidenceId, name: filename });
+};
   const handleWitnessFormChange = (e) => {
     setWitnessForm({ ...witnessForm, [e.target.name]: e.target.value });
   };
@@ -1497,6 +1456,71 @@ export default function CaseDetail() {
           </div>
         </div>
       )}
+
+      {/* Custom Confirm Modal */}
+{confirmDelete && (
+  <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
+    <div className="modal-content" style={{ maxWidth: '420px' }} onClick={e => e.stopPropagation()}>
+      <div className="modal-header">
+        <h3>Confirm Delete</h3>
+        <button className="modal-close" onClick={() => setConfirmDelete(null)}>×</button>
+      </div>
+      <div className="modal-body" style={{ padding: '1.5rem' }}>
+        <p style={{ marginBottom: '1.5rem', color: '#94a3b8' }}>
+          {confirmDelete.type === 'evidence'
+            ? `Are you sure you want to delete "${confirmDelete.name}"? This will also delete any associated detection results.`
+            : 'Are you sure you want to delete this detection result?'}
+        </p>
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <button className="btn-cancel-edit" onClick={() => setConfirmDelete(null)}>Cancel</button>
+          <button
+            className="btn-run-detection"
+            style={{ background: '#ef4444' }}
+            onClick={async () => {
+              const { type, id, name } = confirmDelete;
+              setConfirmDelete(null);
+              if (type === 'evidence') {
+                setDeletingEvidenceId(id);
+                try {
+                  const response = await deleteEvidence(id);
+                  if (response.ok) {
+                    setMessage('✅ Evidence deleted successfully');
+                    await load();
+                  } else {
+                    const err = await response.json();
+                    setMessage('❌ Failed to delete: ' + (err.detail || 'Unknown error'));
+                  }
+                } catch (error) {
+                  setMessage('❌ Error deleting evidence: ' + error.message);
+                } finally {
+                  setDeletingEvidenceId(null);
+                }
+              } else {
+                setDeletingResultId(id);
+                try {
+                  const response = await deleteDetectionResult(id);
+                  if (response.ok) {
+                    setMessage('✅ Detection result deleted successfully');
+                    await loadDetectionResults();
+                  } else {
+                    const err = await response.json();
+                    setMessage('❌ Failed to delete: ' + (err.detail || 'Unknown error'));
+                  }
+                } catch (error) {
+                  setMessage('❌ Error deleting result: ' + error.message);
+                } finally {
+                  setDeletingResultId(null);
+                }
+              }
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }

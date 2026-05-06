@@ -1,5 +1,5 @@
 // services/api.js
-const BASE = "http://127.0.0.1:8000";
+const BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
 let isLoggingOut = false;
 
@@ -411,33 +411,16 @@ export async function getInvestigatorApprovalHistory(investigatorId) {
 }
 
 export const getInvestigators = async () => {
-  const token = localStorage.getItem('token');
-  return fetch(`${BASE}/api/v1/admin/investigators`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
+  return authFetch('/api/v1/admin/investigators');
 };
 
 export const getInvestigatorDetails = async (investigatorId) => {
-  const token = localStorage.getItem('token');
-  return fetch(`${BASE}/api//v1/admin/investigators/${investigatorId}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
+  return authFetch(`/api/v1/admin/investigators/${investigatorId}`);
 };
 
 export const updateInvestigator = async (investigatorId, data) => {
-  const token = localStorage.getItem('token');
-  return fetch(`${BASE}/api//v1/admin/investigators/${investigatorId}`, {
+  return authFetch(`/api/v1/admin/investigators/${investigatorId}`, {
     method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
     body: JSON.stringify(data),
   });
 };

@@ -54,7 +54,7 @@ class InvestigatorUpdate(BaseModel):
 def get_admin_dashboard_stats(current_user: dict = Depends(require_admin)):
     """Get overview statistics for admin dashboard"""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         # Total users by role - FIXED: Changed 'role' to 'roles'
@@ -105,7 +105,7 @@ def get_admin_dashboard_stats(current_user: dict = Depends(require_admin)):
         pending_investigators = cur.fetchone()['count']
         
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         
         return {
             "users_by_role": users_by_role,
@@ -121,7 +121,7 @@ def get_admin_dashboard_stats(current_user: dict = Depends(require_admin)):
         }
     except Exception as e:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         logger.exception("Error fetching admin dashboard stats")
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -134,7 +134,7 @@ def list_contact_requests(
 ):
     """List all contact requests with optional filters"""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     query = """
         SELECT cr.*, 
@@ -159,7 +159,7 @@ def list_contact_requests(
     cur.execute(query, tuple(params))
     requests = cur.fetchall()
     cur.close()
-    conn.close()
+    database.release_connection(conn)
     
     return {"contact_requests": requests}
 
@@ -167,7 +167,7 @@ def list_contact_requests(
 def get_contact_request(request_id: int, current_user: dict = Depends(require_admin)):
     """Get detailed information about a specific contact request"""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     cur.execute("""
         SELECT cr.*, 
@@ -181,7 +181,7 @@ def get_contact_request(request_id: int, current_user: dict = Depends(require_ad
     
     request = cur.fetchone()
     cur.close()
-    conn.close()
+    database.release_connection(conn)
     
     if not request:
         raise HTTPException(status_code=404, detail="Contact request not found")
@@ -196,7 +196,7 @@ def update_contact_request(
 ):
     """Update a contact request (assign investigator, change status, add notes)"""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         # Check if request exists
@@ -247,19 +247,19 @@ def update_contact_request(
         conn.commit()
         
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         
         return {"contact_request": updated_request, "message": "Contact request updated successfully"}
     
     except HTTPException:
         conn.rollback()
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         raise
     except Exception as e:
         conn.rollback()
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/contact-requests/{request_id}/convert-to-case")
@@ -270,7 +270,7 @@ def convert_contact_request_to_case(
 ):
     """Convert an approved contact request into a case and assign to investigator"""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         # Get contact request
@@ -373,7 +373,7 @@ ForenVision Team"""
             # Don't fail the whole request if email fails
         
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         
         return {
             "message": "Contact request converted to case successfully",
@@ -383,12 +383,12 @@ ForenVision Team"""
     except HTTPException:
         conn.rollback()
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         raise
     except Exception as e:
         conn.rollback()
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         logger.exception("Error converting contact request to case")
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -396,7 +396,7 @@ ForenVision Team"""
 def delete_contact_request(request_id: int, current_user: dict = Depends(require_admin)):
     """Delete a contact request"""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         # Get request to delete associated files
@@ -419,19 +419,19 @@ def delete_contact_request(request_id: int, current_user: dict = Depends(require
         cur.execute("DELETE FROM contact_requests WHERE id = %s", (request_id,))
         conn.commit()
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         
         return {"message": "Contact request deleted successfully"}
     
     except HTTPException:
         conn.rollback()
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         raise
     except Exception as e:
         conn.rollback()
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         raise HTTPException(status_code=500, detail=str(e))
 
 # =============== INVESTIGATOR MANAGEMENT ===============
@@ -439,7 +439,7 @@ def delete_contact_request(request_id: int, current_user: dict = Depends(require
 def list_investigators(current_user: dict = Depends(require_admin)):
     """List all investigators with their current workload"""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     # FIXED: Changed 'role' to 'roles'
     cur.execute("""
@@ -459,7 +459,7 @@ def list_investigators(current_user: dict = Depends(require_admin)):
     
     investigators = cur.fetchall()
     cur.close()
-    conn.close()
+    database.release_connection(conn)
     
     return {"investigators": investigators}
 
@@ -467,7 +467,7 @@ def list_investigators(current_user: dict = Depends(require_admin)):
 def get_investigator_details(investigator_id: int, current_user: dict = Depends(require_admin)):
     """Get detailed information about an investigator including all their cases"""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     # Get investigator info - FIXED: Changed 'role' to 'roles'
     cur.execute("""
@@ -482,7 +482,7 @@ def get_investigator_details(investigator_id: int, current_user: dict = Depends(
     
     if not investigator:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         raise HTTPException(status_code=404, detail="Investigator not found")
     
     # Get all cases
@@ -510,7 +510,7 @@ def get_investigator_details(investigator_id: int, current_user: dict = Depends(
     stats = cur.fetchone()
     
     cur.close()
-    conn.close()
+    database.release_connection(conn)
     
     return {
         "investigator": investigator,
@@ -526,7 +526,7 @@ def update_investigator(
 ):
     """Update investigator profile and availability"""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         # Check if investigator exists - FIXED: Changed 'role' to 'roles'
@@ -571,7 +571,7 @@ def update_investigator(
         conn.commit()
         
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         
         return {
             "investigator": updated_investigator,
@@ -581,12 +581,12 @@ def update_investigator(
     except HTTPException:
         conn.rollback()
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         raise
     except Exception as e:
         conn.rollback()
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         raise HTTPException(status_code=500, detail=str(e))
 
 # # =============== USER MANAGEMENT ===============
@@ -597,7 +597,7 @@ def update_investigator(
 # ):
 #     """List all users with optional role filter"""
 #     conn = database.get_connection()
-#     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+#     cur = conn.cursor()
     
 #     # FIXED: Changed 'role' to 'roles'
 #     query = "SELECT id, name, email, contact_number, roles, created_at FROM users WHERE 1=1"
@@ -612,7 +612,7 @@ def update_investigator(
 #     cur.execute(query, tuple(params))
 #     users = cur.fetchall()
 #     cur.close()
-#     conn.close()
+#     database.release_connection(conn)
     
 #     return {"users": users}
 
@@ -627,7 +627,7 @@ def update_investigator(
 #         raise HTTPException(status_code=400, detail="Invalid role")
     
 #     conn = database.get_connection()
-#     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+#     cur = conn.cursor()
     
 #     try:
 #         # FIXED: Changed 'role' to 'roles'
@@ -645,7 +645,7 @@ def update_investigator(
         
 #         conn.commit()
 #         cur.close()
-#         conn.close()
+#         database.release_connection(conn)
         
 #         return {
 #             "user": updated_user,
@@ -655,12 +655,12 @@ def update_investigator(
 #     except HTTPException:
 #         conn.rollback()
 #         cur.close()
-#         conn.close()
+#         database.release_connection(conn)
 #         raise
 #     except Exception as e:
 #         conn.rollback()
 #         cur.close()
-#         conn.close()
+#         database.release_connection(conn)
 #         raise HTTPException(status_code=500, detail=str(e))
 
 # =============== CASES OVERVIEW ===============
@@ -672,7 +672,7 @@ def list_all_cases(
 ):
     """List all cases across all investigators"""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     query = """
         SELECT c.*, u.name as investigator_name, u.email as investigator_email
@@ -695,7 +695,7 @@ def list_all_cases(
     cur.execute(query, tuple(params))
     cases = cur.fetchall()
     cur.close()
-    conn.close()
+    database.release_connection(conn)
     
     return {"cases": cases}
 
@@ -710,7 +710,7 @@ class InvestigatorApprovalRequest(BaseModel):
 def get_pending_investigators(current_user: dict = Depends(require_admin)):
     """Get list of investigators pending approval"""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     # FIXED: Changed 'role' to 'roles'
     cur.execute("""
@@ -725,7 +725,7 @@ def get_pending_investigators(current_user: dict = Depends(require_admin)):
     
     pending_investigators = cur.fetchall()
     cur.close()
-    conn.close()
+    database.release_connection(conn)
     
     return {"pending_investigators": pending_investigators}
 
@@ -737,7 +737,7 @@ def update_investigator_approval(
 ):
     """Approve or reject an investigator"""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         # Check if investigator exists - FIXED: Changed 'role' to 'roles'
@@ -810,7 +810,7 @@ ForenVision Admin Team"""
             logger.error(f"Failed to send approval email: {str(email_error)}")
 
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         
         action = "approved" if approval_data.is_approved else "rejected"
         return {
@@ -822,12 +822,12 @@ ForenVision Admin Team"""
     except HTTPException:
         conn.rollback()
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         raise
     except Exception as e:
         conn.rollback()
         cur.close()
-        conn.close()
+        database.release_connection(conn)
         logger.exception("Error updating investigator approval")
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -838,7 +838,7 @@ def get_investigator_approval_history(
 ):
     """Get approval history for an investigator"""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     cur.execute("""
         SELECT al.*, u.name as admin_name, u.email as admin_email
@@ -850,7 +850,7 @@ def get_investigator_approval_history(
     
     history = cur.fetchall()
     cur.close()
-    conn.close()
+    database.release_connection(conn)
     
     return {"approval_history": history}
 

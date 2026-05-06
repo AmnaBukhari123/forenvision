@@ -74,7 +74,7 @@ async def run_object_detection(case_id: int, request: ObjectDetectionRequest, cu
     - conf_threshold (optional): Confidence threshold (default: 0.25)
     """
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
 
     # Validate model type
     model_type = request.model_type.lower() if request.model_type else "crime_scene"
@@ -182,7 +182,7 @@ async def run_object_detection(case_id: int, request: ObjectDetectionRequest, cu
         except Exception:
             pass
         try:
-            conn.close()
+            database.release_connection(conn) 
         except Exception:
             pass
 
@@ -219,7 +219,7 @@ def get_object_detection_results(
     - model_type (optional): Filter by model type ("crime_scene" or "blood")
     """
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
 
     try:
         _exec_with_logging(
@@ -265,7 +265,7 @@ def get_object_detection_results(
         except Exception:
             pass
         try:
-            conn.close()
+            database.release_connection(conn) 
         except Exception:
             pass
 
@@ -273,7 +273,7 @@ def get_object_detection_results(
 @router.get("/object_detection_results/{result_id}")
 def get_detection_result(result_id: int, current_user: dict = Depends(get_current_user)):
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
 
     try:
         _exec_with_logging(
@@ -300,7 +300,7 @@ def get_detection_result(result_id: int, current_user: dict = Depends(get_curren
         except Exception:
             pass
         try:
-            conn.close()
+            database.release_connection(conn) 
         except Exception:
             pass
 
@@ -309,7 +309,7 @@ def get_detection_result(result_id: int, current_user: dict = Depends(get_curren
 def delete_detection_result(result_id: int, current_user: dict = Depends(get_current_user)):
     """Delete a specific object detection result"""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
 
     try:
         # Verify the detection result exists and belongs to the user
@@ -352,7 +352,7 @@ def delete_detection_result(result_id: int, current_user: dict = Depends(get_cur
         except Exception:
             pass
         try:
-            conn.close()
+            database.release_connection(conn) 
         except Exception:
             pass
 
@@ -371,7 +371,7 @@ def delete_all_case_detection_results(
                             If not provided, deletes all results for the case
     """
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
 
     try:
         # Verify case exists and belongs to user
@@ -428,7 +428,7 @@ def delete_all_case_detection_results(
         except Exception:
             pass
         try:
-            conn.close()
+            database.release_connection(conn) 
         except Exception:
             pass
 

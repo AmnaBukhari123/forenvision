@@ -66,7 +66,7 @@ class WitnessStatementUpdate(BaseModel):
 def create_case(case: CaseIn, current_user: dict = Depends(get_current_user)):
     """Create a new case for the authenticated user."""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         logger.info(f"Creating case for user {current_user.get('id')}: {case.name}")
@@ -110,7 +110,7 @@ def list_cases(
 ):
     """Return cases. Admins see all cases, others see only their own."""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         user_id = current_user.get("id")
@@ -195,13 +195,13 @@ def list_cases(
         raise HTTPException(status_code=500, detail=f"Error listing cases: {str(e)}")
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 @router.get("/cases/{case_id}")
 def get_case(case_id: int, current_user: dict = Depends(get_current_user)):
     """Fetch a specific case. Admins can view any case, others only their own."""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         user_id = current_user.get("id")
@@ -252,13 +252,13 @@ def get_case(case_id: int, current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=f"Error fetching case: {str(e)}")
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 
 @router.put("/cases/{case_id}")
 def update_case(case_id: int, case_update: CaseIn, current_user: dict = Depends(get_current_user)):
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
 
     try:
         user_id = current_user.get("id")
@@ -369,13 +369,13 @@ ForenVision Team"""
 
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 @router.delete("/cases/{case_id}")
 def delete_case(case_id: int, current_user: dict = Depends(get_current_user)):
     """Delete a case only if it belongs to the authenticated user."""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         user_id = current_user.get("id")
@@ -438,7 +438,7 @@ ForenVision Team"""
         raise HTTPException(status_code=500, detail=f"Error deleting case: {str(e)}")
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 # =============== EVIDENCE ROUTES ===============
 @router.post("/cases/{case_id}/evidence")
@@ -449,7 +449,7 @@ async def upload_evidence(
 ):
     """Attach evidence only if the case belongs to the authenticated user."""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         user_id = current_user.get("id")
@@ -501,13 +501,13 @@ async def upload_evidence(
         raise HTTPException(status_code=500, detail=f"Error uploading evidence: {str(e)}")
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 @router.delete("/evidence/{evidence_id}")
 def delete_evidence(evidence_id: int, current_user: dict = Depends(get_current_user)):
     """Delete a specific evidence file"""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         user_id = current_user.get("id")
@@ -568,7 +568,7 @@ def delete_evidence(evidence_id: int, current_user: dict = Depends(get_current_u
         except Exception:
             pass
         try:
-            conn.close()
+            database.release_connection(conn)
         except Exception:
             pass
 
@@ -577,7 +577,7 @@ def delete_evidence(evidence_id: int, current_user: dict = Depends(get_current_u
 def get_witness_statements(case_id: int, current_user: dict = Depends(get_current_user)):
     """Get all witness statements for a specific case."""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         user_id = current_user.get("id")
@@ -628,7 +628,7 @@ def get_witness_statements(case_id: int, current_user: dict = Depends(get_curren
         raise HTTPException(status_code=500, detail=f"Error fetching witness statements: {str(e)}")
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 @router.post("/cases/{case_id}/witness-statements")
 def create_witness_statement(
@@ -638,7 +638,7 @@ def create_witness_statement(
 ):
     """Create a new witness statement for a case."""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         user_id = current_user.get("id")
@@ -718,7 +718,7 @@ ForenVision Team"""
         raise HTTPException(status_code=500, detail=f"Error creating witness statement: {str(e)}")
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 @router.put("/witness-statements/{statement_id}")
 def update_witness_statement(
@@ -728,7 +728,7 @@ def update_witness_statement(
 ):
     """Update a witness statement."""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         user_id = current_user.get("id")
@@ -787,13 +787,13 @@ def update_witness_statement(
         raise HTTPException(status_code=500, detail=f"Error updating witness statement: {str(e)}")
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 @router.delete("/witness-statements/{statement_id}")
 def delete_witness_statement(statement_id: int, current_user: dict = Depends(get_current_user)):
     """Delete a witness statement."""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         user_id = current_user.get("id")
@@ -834,7 +834,7 @@ def delete_witness_statement(statement_id: int, current_user: dict = Depends(get
         raise HTTPException(status_code=500, detail=f"Error deleting witness statement: {str(e)}")
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 # =============== CASE ACCEPTANCE ROUTES ===============
 @router.post("/cases/{case_id}/accept")
@@ -845,7 +845,7 @@ def accept_case(
 ):
     """Accept or decline a case assignment"""
     conn = database.get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         user_id = current_user.get("id")
@@ -926,4 +926,4 @@ def accept_case(
         raise HTTPException(status_code=500, detail=f"Error processing acceptance: {str(e)}")
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)

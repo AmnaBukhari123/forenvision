@@ -1,8 +1,7 @@
 // pages/Settings.jsx
 import React, { useState, useEffect } from 'react';
-import { User, Key, Bell } from 'lucide-react';
+import { User, Key } from 'lucide-react';
 import './Settings.css';
-import { getNotificationPreferences, updateNotificationPreferences, handleApiResponse } from '../services/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -25,14 +24,6 @@ export default function Settings() {
     confirm_password: ''
   });
 
-  // Notification preferences state
-  const [notifications, setNotifications] = useState({
-    email_notifications: true,
-    case_updates: true,
-    new_assignments: true,
-    system_announcements: false
-  });
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
 
   // ✅ Track original values to detect changes
   const [originalProfile, setOriginalProfile] = useState({
@@ -50,7 +41,6 @@ export default function Settings() {
   // Load profile data
   useEffect(() => {
     loadProfile();
-    loadNotifications();
   }, []);
 
   const loadProfile = async () => {
@@ -74,18 +64,7 @@ export default function Settings() {
     }
   };
 
-  const loadNotifications = async () => {
-    try {
-      setNotificationsLoading(true);
-      const response = await getNotificationPreferences();
-      const data = await handleApiResponse(response);
-      setNotifications(data);
-    } catch (error) {
-      console.error('Error loading notifications:', error);
-    } finally {
-      setNotificationsLoading(false);
-    }
-  };
+  
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
@@ -162,53 +141,14 @@ export default function Settings() {
     }
   };
 
-  const handleNotificationToggle = async (key) => {
-    const newValue = !notifications[key];
-    
-    // Optimistically update UI
-    setNotifications(prev => ({ ...prev, [key]: newValue }));
-    setMessage({ type: '', text: '' });
 
-    try {
-      const response = await updateNotificationPreferences({ [key]: newValue });
-      await handleApiResponse(response);
-      setMessage({ type: 'success', text: 'Notification preferences updated!' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
-    } catch (error) {
-      // Revert on error
-      setNotifications(prev => ({ ...prev, [key]: !newValue }));
-      setMessage({ type: 'error', text: error.message || 'Failed to update preferences' });
-    }
-  };
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'security', label: 'Security', icon: Key },
-    { id: 'notifications', label: 'Notifications', icon: Bell }
   ];
 
-  const notificationOptions = [
-    {
-      key: 'email_notifications',
-      title: 'Email Notifications',
-      description: 'Receive email updates about case activities'
-    },
-    {
-      key: 'case_updates',
-      title: 'Case Updates',
-      description: 'Get notified when cases are updated'
-    },
-    {
-      key: 'new_assignments',
-      title: 'New Assignments',
-      description: "Alert when you're assigned to a new case"
-    },
-    {
-      key: 'system_announcements',
-      title: 'System Announcements',
-      description: 'Receive important system updates'
-    }
-  ];
+
 
   // ✅ Check if profile has any changes from original
   const profileHasChanges = 
@@ -357,38 +297,6 @@ export default function Settings() {
                 {loading ? 'Changing...' : 'Change Password'}
               </button>
             </form>
-          </div>
-        )}
-
-        {activeTab === 'notifications' && (
-          <div className="settings-section">
-            <h2>Notification Preferences</h2>
-            <p className="section-description">Manage how you receive updates</p>
-            
-            {notificationsLoading ? (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#9ca3af' }}>
-                Loading preferences...
-              </div>
-            ) : (
-              <div className="notification-options">
-                {notificationOptions.map(option => (
-                  <div key={option.key} className="notification-item">
-                    <div className="notification-info">
-                      <h3>{option.title}</h3>
-                      <p>{option.description}</p>
-                    </div>
-                    <label className="toggle-switch">
-                      <input 
-                        type="checkbox" 
-                        checked={notifications[option.key]}
-                        onChange={() => handleNotificationToggle(option.key)}
-                      />
-                      <span className="toggle-slider"></span>
-                    </label>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         )}
       </div>

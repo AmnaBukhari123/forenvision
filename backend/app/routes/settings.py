@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 import bcrypt
 import pyotp
+import database
 from database import get_connection
 import psycopg2.extras
 import datetime
@@ -28,7 +29,7 @@ def get_profile(current_user: dict = Depends(get_current_user)):
     print("CURRENT USER:", current_user) 
     """Get user profile information"""
     conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         cur.execute("""
@@ -43,13 +44,13 @@ def get_profile(current_user: dict = Depends(get_current_user)):
         return user
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 @router.put("/profile", response_model=ProfileResponse)
 def update_profile(profile_update: ProfileUpdate, current_user: dict = Depends(get_current_user)):
     """Update user profile information"""
     conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         # Build update query dynamically
@@ -119,7 +120,7 @@ async def upload_profile_picture(file: UploadFile = File(...), current_user: dic
         
         # Update user profile picture in database
         conn = get_connection()
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur = conn.cursor()
         
         # Delete old profile picture if exists
         cur.execute("SELECT profile_picture FROM users WHERE id = %s", (current_user["id"],))
@@ -146,14 +147,14 @@ async def upload_profile_picture(file: UploadFile = File(...), current_user: dic
         if 'cur' in locals():
             cur.close()
         if 'conn' in locals():
-            conn.close()
+            database.release_connection(conn)
 
 # === Password Management ===
 @router.post("/password")
 def change_password(password_change: PasswordChange, current_user: dict = Depends(get_current_user)):
     """Change user password"""
     conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         # Get current password hash
@@ -198,14 +199,14 @@ def change_password(password_change: PasswordChange, current_user: dict = Depend
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 # === Two-Factor Authentication ===
 @router.post("/2fa/setup")
 def setup_2fa(twofa_setup: TwoFactorSetup, current_user: dict = Depends(get_current_user)):
     """Enable or disable two-factor authentication"""
     conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         if twofa_setup.enable:
@@ -234,13 +235,13 @@ def setup_2fa(twofa_setup: TwoFactorSetup, current_user: dict = Depends(get_curr
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 @router.post("/2fa/verify")
 def verify_2fa(twofa_verify: TwoFactorVerify, current_user: dict = Depends(get_current_user)):
     """Verify 2FA token during setup"""
     conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         cur.execute("SELECT two_factor_secret FROM users WHERE id = %s", (current_user["id"],))
@@ -260,14 +261,14 @@ def verify_2fa(twofa_verify: TwoFactorVerify, current_user: dict = Depends(get_c
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 # === Application Settings ===
 @router.get("/application", response_model=ApplicationSettings)
 def get_application_settings(current_user: dict = Depends(get_current_user)):
     """Get user's application settings"""
     conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         settings = _get_or_create_user_settings(cur, current_user["id"])
@@ -275,13 +276,13 @@ def get_application_settings(current_user: dict = Depends(get_current_user)):
         return ApplicationSettings(**settings)
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 @router.put("/application", response_model=ApplicationSettings)
 def update_application_settings(settings: ApplicationSettings, current_user: dict = Depends(get_current_user)):
     """Update user's application settings"""
     conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         _get_or_create_user_settings(cur, current_user["id"])
@@ -313,14 +314,14 @@ def update_application_settings(settings: ApplicationSettings, current_user: dic
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 # === Case Management Settings ===
 @router.get("/case-management", response_model=CaseManagementSettings)
 def get_case_management_settings(current_user: dict = Depends(get_current_user)):
     """Get user's case management settings"""
     conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         settings = _get_or_create_user_settings(cur, current_user["id"])
@@ -328,13 +329,13 @@ def get_case_management_settings(current_user: dict = Depends(get_current_user))
         return CaseManagementSettings(**settings)
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 @router.put("/case-management", response_model=CaseManagementSettings)
 def update_case_management_settings(settings: CaseManagementSettings, current_user: dict = Depends(get_current_user)):
     """Update user's case management settings"""
     conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         _get_or_create_user_settings(cur, current_user["id"])
@@ -362,7 +363,7 @@ def update_case_management_settings(settings: CaseManagementSettings, current_us
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 # === All Settings ===
 
@@ -405,7 +406,7 @@ def _get_or_create_user_settings(cur, user_id):
 def get_notification_preferences(current_user: dict = Depends(get_current_user)):
     """Get user's notification preferences"""
     conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         settings = _get_or_create_user_settings(cur, current_user["id"])
@@ -413,7 +414,7 @@ def get_notification_preferences(current_user: dict = Depends(get_current_user))
         return NotificationPreferences(**settings)
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 @router.put("/notifications", response_model=NotificationPreferences)
 def update_notification_preferences(
@@ -422,7 +423,7 @@ def update_notification_preferences(
 ):
     """Update user's notification preferences"""
     conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         _get_or_create_user_settings(cur, current_user["id"])
@@ -448,14 +449,14 @@ def update_notification_preferences(
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)
 
 # Update the get_all_settings route to include notifications:
 @router.get("/all", response_model=UserSettingsResponse)
 def get_all_settings(current_user: dict = Depends(get_current_user)):
     """Get all user settings in one response"""
     conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
     
     try:
         # Get profile
@@ -477,4 +478,4 @@ def get_all_settings(current_user: dict = Depends(get_current_user)):
         )
     finally:
         cur.close()
-        conn.close()
+        database.release_connection(conn)

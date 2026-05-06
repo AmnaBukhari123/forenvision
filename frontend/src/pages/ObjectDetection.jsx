@@ -1,4 +1,4 @@
-// ObjectDetection.jsx
+//pages/ ObjectDetection.jsx
 import React, { useState, useEffect } from 'react';
 import { runObjectDetection, getObjectDetectionResults } from '../services/api';
 import './ObjectDetection.css';

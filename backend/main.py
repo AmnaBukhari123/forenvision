@@ -2,6 +2,8 @@
 from dotenv import load_dotenv
 load_dotenv()
 
+from contextlib import asynccontextmanager
+import database
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import os
@@ -18,8 +20,32 @@ from app.routes.investigator import router as investigator_router
 from app.routes.report import router as report_router
 from app.routes.reconstruction import router as reconstruction_router
 
-app = FastAPI(title="ForenVision Backend")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    conn = database.get_connection()
+    cur = conn.cursor()
+    try:
+        # Only reconstruction runs as background job — detection is synchronous
+        cur.execute("""
+            UPDATE reconstruction_jobs 
+            SET status = 'failed', error_message = 'Server restarted during processing'
+            WHERE status IN ('processing', 'running')
+        """)
+        conn.commit()
+        print("✅ Job recovery complete — stuck jobs reset to failed")
+    except Exception as e:
+        conn.rollback()
+        print(f"⚠️ Job recovery skipped: {e}")
+    finally:
+        cur.close()
+        database.release_connection(conn)
 
+    yield
+
+    database.close_all_connections()
+    print("✅ DB connection pool closed")
+
+app = FastAPI(title="ForenVision Backend", lifespan=lifespan)
 # ── CORS
 app.add_middleware(
     CORSMiddleware,

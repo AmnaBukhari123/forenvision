@@ -86,7 +86,7 @@ export default function Landing() {
     { icon: Search, title: "Cybercrime & Digital Fraud", description: "Case management for digital forensics including fraud, identity theft, and online criminal activity." },
     { icon: Lock, title: "Theft & Burglary", description: "Evidence tracking, witness statements, and suspect profiling for property crime investigations." },
     { icon: AlertTriangle, title: "Drug Trafficking", description: "Secure handling of narcotics case data, informant records, and inter-agency evidence sharing." },
-    { icon: Scale, title: "Corporate & White-Collar Crime", description: "Financial fraud documentation, audit trails, and structured reporting for regulatory authorities." },
+    { icon: Scale, title: "Corporate & White-Collar Crime", description: "Financial fraud documentation, audit trails, and structured reporting for regulatory authorities and compliance" },
     { icon: Globe, title: "Terrorism & National Security", description: "Classified-level case isolation, secure investigator access, and multi-agency collaboration." }
   ];
 
@@ -128,28 +128,30 @@ export default function Landing() {
         background: `radial-gradient(700px circle at ${mousePos.x}px ${mousePos.y}px, rgba(59,130,246,0.06), transparent 65%)`
       }} />
 
-      {/* Navbar */}
-      <nav className="landing-navbar">
-        <div className="navbar-content">
-          <div className="logo-container">
-            <div className="logo-ring">
-              <Shield className="logo-icon" size={22} />
-            </div>
-            <h1 className="landing-logo">ForenVision</h1>
-          </div>
-          <div className="nav-links">
-            {["#crimes|Crime Types","#protection|Protection","#acts|Crime Acts","#benefits|Benefits","#faq|FAQ"].map(item => {
-              const [href, label] = item.split("|");
-              return <a key={href} href={href} className="nav-link">{label}</a>;
-            })}
-          </div>
-          <div className="landing-buttons">
-            <Link to="/contact" className="btn-nav-ghost">Contact</Link>
-            <Link to="/login" className="btn-nav-outline">Login</Link>
-            <Link to="/signup" className="btn-nav-solid">Get Started <ArrowRight size={14} /></Link>
-          </div>
-        </div>
-      </nav>
+     {/* Navbar */}
+<nav className="landing-navbar">
+  <div className="navbar-content">
+    <div className="logo-container">
+      <div className="logo-ring">
+        <Shield className="logo-icon" size={22} />
+      </div>
+      <h1 className="landing-logo">ForenVision</h1>
+    </div>
+
+    <div className="nav-links">
+      {["#crimes|Crime Types","#protection|Protection","#acts|Crime Acts","#benefits|Benefits","#about|About","#faq|FAQ"].map(item => {
+        const [href, label] = item.split("|");
+        return <a key={href} href={href} className="nav-link">{label}</a>;
+      })}
+    </div>
+
+    <div className="landing-buttons">
+      <Link to="/contact" className="btn-nav-ghost">Contact</Link>
+      <Link to="/login" className="btn-nav-outline">Login</Link>
+      <Link to="/signup" className="btn-nav-solid">Get Started <ArrowRight size={14} /></Link>
+    </div>
+  </div>
+</nav>
 
       {/* Hero */}
       <section className="landing-hero">
@@ -190,7 +192,7 @@ export default function Landing() {
               { num: 75, suffix: "%", label: "Detection Accuracy" },
               { num: 3, suffix: "D", label: "Scene Reconstruction" },
               { num: 90, suffix: "%", label: "Faster Reports" },
-              { num: 24, suffix: "/7", label: "Availability" }
+              { num: 24, suffix: "/7", label: "System Availability" }
             ].map((s, i) => (
               <React.Fragment key={i}>
                 {i > 0 && <div className="stat-sep" />}
@@ -214,11 +216,15 @@ export default function Landing() {
       {/* Features */}
       <section className="features-section">
         <div className="ambient-glow glow-blue" />
-        <Reveal><div className="section-header">
-          <span className="section-badge">What We Offer</span>
-          <h2 className="section-title">A Complete Forensic Investigation Suite</h2>
-          <p className="section-subtitle">Every tool a modern investigator needs — integrated into one secure platform</p>
-        </div></Reveal>
+        <Reveal>
+  <div className="section-header">
+    <div className="section-text">
+      <h2 className="section-title">A Complete Forensic Investigation Suite</h2>
+      <p className="section-subtitle">Every tool a modern investigator needs — integrated into one secure platform</p>
+    </div>
+    <span className="section-badge">What We Offer</span>
+  </div>
+</Reveal>
         <div className="features-grid">
           {features.map((f, i) => {
             const Icon = f.icon;
@@ -239,11 +245,15 @@ export default function Landing() {
       {/* Crime Types */}
       <section className="crimes-section" id="crimes">
         <div className="ambient-glow glow-red" />
-        <Reveal><div className="section-header">
-          <span className="section-badge badge-red">Supported Investigations</span>
-          <h2 className="section-title">Types of Crimes We Help Investigate</h2>
-          <p className="section-subtitle">ForenVision supports investigators across all major crime categories</p>
-        </div></Reveal>
+        <Reveal>
+  <div className="section-header">
+    <div className="section-text">
+      <h2 className="section-title">Types of Crimes We Help Investigate</h2>
+      <p className="section-subtitle">ForenVision supports investigators across all major crime categories</p>
+    </div>
+    <span className="section-badge badge-red">Supported Investigations</span>
+  </div>
+</Reveal>
         <div className="crimes-grid">
           {crimeTypes.map((c, i) => {
             const Icon = c.icon;
@@ -265,11 +275,15 @@ export default function Landing() {
       {/* Protection */}
       <section className="protection-section" id="protection">
         <div className="ambient-glow glow-green" />
-        <Reveal><div className="section-header">
-          <span className="section-badge badge-green">Safety Guidance</span>
-          <h2 className="section-title">How to Protect Yourself & Preserve Evidence</h2>
-          <p className="section-subtitle">Critical guidance for citizens, investigators, and authorities</p>
-        </div></Reveal>
+        <Reveal>
+  <div className="section-header">
+    <div className="section-text">
+      <h2 className="section-title">How to Protect Yourself & Preserve Evidence</h2>
+      <p className="section-subtitle">Critical guidance for citizens, investigators, and authorities</p>
+    </div>
+    <span className="section-badge badge-green">Safety Guidance</span>
+  </div>
+</Reveal>
         <div className="protection-grid">
           {protectionGuidance.map((g, i) => (
             <Reveal key={i} delay={i * 90}>
@@ -297,11 +311,15 @@ export default function Landing() {
       {/* Crime Acts */}
       <section className="acts-section" id="acts">
         <div className="ambient-glow glow-purple" />
-        <Reveal><div className="section-header">
-          <span className="section-badge badge-purple">Legal Framework</span>
-          <h2 className="section-title">Relevant Crime Acts & Legislation</h2>
-          <p className="section-subtitle">ForenVision aligns with Pakistan's legal framework for forensic investigations</p>
-        </div></Reveal>
+        <Reveal>
+  <div className="section-header">
+    <div className="section-text">
+      <h2 className="section-title">Relevant Crime Acts & Legislation</h2>
+      <p className="section-subtitle">ForenVision aligns with Pakistan's legal framework for forensic investigations</p>
+    </div>
+    <span className="section-badge badge-purple">Legal Framework</span>
+  </div>
+</Reveal>
         <Reveal delay={80}>
           <div className="acts-wrap">
             <table className="acts-table">
@@ -324,11 +342,15 @@ export default function Landing() {
       {/* Benefits */}
       <section className="benefits-section" id="benefits">
         <div className="ambient-glow glow-blue" />
-        <Reveal><div className="section-header">
-          <span className="section-badge">Why ForenVision</span>
-          <h2 className="section-title">Benefits for Investigators & Authorities</h2>
-          <p className="section-subtitle">Built from the ground up for Pakistan's forensic and law enforcement professionals</p>
-        </div></Reveal>
+        <Reveal>
+  <div className="section-header">
+    <div className="section-text">
+      <h2 className="section-title">Benefits for Investigators & Authorities</h2>
+      <p className="section-subtitle">Where Pakistan’s investigators get the edge</p>
+    </div>
+    <span className="section-badge">Why ForenVision</span>
+  </div>
+</Reveal>
         <div className="benefits-grid">
           {benefits.map((b, i) => {
             const Icon = b.icon;
@@ -348,11 +370,15 @@ export default function Landing() {
 
       {/* FAQ */}
       <section className="faq-section" id="faq">
-        <Reveal><div className="section-header">
-          <span className="section-badge">FAQ</span>
-          <h2 className="section-title">Frequently Asked Questions</h2>
-          <p className="section-subtitle">Everything evaluators and authorities need to know</p>
-        </div></Reveal>
+        <Reveal>
+  <div className="section-header">
+    <div className="section-text">
+      <h2 className="section-title">Frequently Asked Questions</h2>
+      <p className="section-subtitle">Everything evaluators and authorities need to know</p>
+    </div>
+    <span className="section-badge">FAQ</span>
+  </div>
+</Reveal>
         <div className="faq-list">
           {faqs.map((faq, i) => (
             <Reveal key={i} delay={i * 55}>
@@ -367,6 +393,78 @@ export default function Landing() {
           ))}
         </div>
       </section>
+
+      {/* About Us */}
+<section className="about-section" id="about">
+  <div className="ambient-glow glow-purple" />
+  <Reveal>
+    <div className="section-header">
+      <div className="section-text">
+        <h2 className="section-title">The Minds Behind ForenVision</h2>
+        <p className="section-subtitle">Passionate developers building Pakistan's next-generation forensic platform</p>
+      </div>
+      <span className="section-badge badge-purple">Meet the Team</span>
+    </div>
+  </Reveal>
+
+  <div className="about-cards">
+    {[
+      {
+        initials: "MN",
+        name: "Maham Naveed",
+        role: "Co-Founder & Developer",
+        linkedin: "https://linkedin.com/in/maham-naveed",
+        email: "mahamnaveed@gmail.com",
+        github: "https://github.com/mahamnaveed"
+      },
+      {
+        initials: "AB",
+        name: "Amna Bukhari",
+        role: "Co-Founder & Developer",
+        linkedin: "https://linkedin.com/in/amna-bukhari",
+        email: "forenvisionofficial@gmail.com",
+        github: "https://github.com/amnabukhari"
+      }
+    ].map((m, i) => (
+      <Reveal key={i} delay={i * 130}>
+        <SpotlightCard className="member-card">
+          <div className="member-card-top-glow" />
+          <div className="member-avatar-ring">
+            <span className="member-initials">{m.initials}</span>
+          </div>
+          <div className="member-info">
+          <div className="member-name">{m.name}</div>
+          <div className="member-role-badge">{m.role}</div>
+          </div>
+          <div className="member-divider" />
+          <div className="member-links">
+            <a href={m.linkedin} target="_blank" rel="noreferrer" className="member-link member-link-li">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+              </svg>
+              LinkedIn
+              <span className="member-link-arrow">↗</span>
+            </a>
+            <a href={`mailto:${m.email}`} className="member-link member-link-gm">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 010 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/>
+              </svg>
+              {m.email}
+              <span className="member-link-arrow">↗</span>
+            </a>
+            <a href={m.github} target="_blank" rel="noreferrer" className="member-link member-link-gh">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+              </svg>
+              GitHub
+              <span className="member-link-arrow">↗</span>
+            </a>
+          </div>
+        </SpotlightCard>
+      </Reveal>
+    ))}
+  </div>
+</section>
 
       {/* CTA */}
       <section className="cta-section">
