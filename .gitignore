@@ -39,6 +39,20 @@ pnpm-debug.log*
 *.sublime-workspace
 *.sublime-project
 
+
+# ML / AI outputs (CRITICAL for ForenVision)
+backend/ml/outputs/
+
+# 3D model files
+*.obj
+*.glb
+*.ply
+*.fbx
+
+# Generated images
+*_rembg_input.png
+input.png
+
 # OS Files
 Thumbs.db
 ehthumbs.db
