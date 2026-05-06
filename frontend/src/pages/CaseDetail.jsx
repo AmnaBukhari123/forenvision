@@ -23,8 +23,7 @@ import ForensicReportRenderer from "./ForensicReportRenderer";
 
 const validatePakistaniPhone = (phone) => {
   if (!phone || phone.trim() === "") return true;
-  const cleaned = phone.replace(/[\s\-]/g, ""); // remove spaces and dashes
-  // Covers: 03XXXXXXXXX (11 digits), +923XXXXXXXXX, 00923XXXXXXXXX, 923XXXXXXXXX
+  const cleaned = phone.replace(/[\s\-]/g, "");
   const pattern = /^(\+92|0092|92|0)3[0-9]{9}$/;
   return pattern.test(cleaned);
 };
@@ -34,7 +33,6 @@ export default function CaseDetail() {
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
   const fileInputRef = useRef(null);
-  const resultsSectionRef = useRef(null);
 
   const [data, setData] = useState(null);
   const [file, setFile] = useState(null);
@@ -60,13 +58,10 @@ export default function CaseDetail() {
   const [confidenceThreshold, setConfidenceThreshold] = useState(0.25);
   const [runningDetection, setRunningDetection] = useState(false);
   const [detectionResults, setDetectionResults] = useState([]);
-  const [detectionMessage, setDetectionMessage] = useState({
-    type: "",
-    text: "",
-  });
-  const [deletingResultId, setDeletingResultId] = useState(null);
+  const [detectionMessage, setDetectionMessage] = useState({ type: "", text: "" });
   const [deletingEvidenceId, setDeletingEvidenceId] = useState(null);
   const [availableModels, setAvailableModels] = useState([]);
+  const [detectionSuccess, setDetectionSuccess] = useState(false); // ADDED: New state variable
 
   const [witnessStatements, setWitnessStatements] = useState([]);
   const [showWitnessForm, setShowWitnessForm] = useState(false);
@@ -88,9 +83,7 @@ export default function CaseDetail() {
   const [deletingReportId, setDeletingReportId] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [originalForm, setOriginalForm] = useState(null);
-  const [confirmDelete, setConfirmDelete] = useState(null); // add this state at top
-
-  
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   const load = async () => {
     try {
@@ -99,25 +92,10 @@ export default function CaseDetail() {
         const d = await res.json();
         setData(d);
 
-        setEditForm({
-          name: d.case.name || "",
-          description: d.case.description || "",
-          incident_date: d.case.incident_date
-            ? d.case.incident_date.split("T")[0]
-            : "",
-          category: d.case.category || "",
-          priority: d.case.priority || "",
-          client: d.case.client || "",
-          investigating_officer: d.case.investigating_officer || "",
-          status: d.case.status || "New",
-        });
-
         const initialForm = {
           name: d.case.name || "",
           description: d.case.description || "",
-          incident_date: d.case.incident_date
-            ? d.case.incident_date.split("T")[0]
-            : "",
+          incident_date: d.case.incident_date ? d.case.incident_date.split("T")[0] : "",
           category: d.case.category || "",
           priority: d.case.priority || "",
           client: d.case.client || "",
@@ -192,12 +170,8 @@ export default function CaseDetail() {
   const handleEditChange = (e) => {
     const updated = { ...editForm, [e.target.name]: e.target.value };
     setEditForm(updated);
-
-    // Check if anything changed from original
     if (originalForm) {
-      const changed = Object.keys(updated).some(
-        (key) => updated[key] !== originalForm[key],
-      );
+      const changed = Object.keys(updated).some((key) => updated[key] !== originalForm[key]);
       setHasChanges(changed);
     }
   };
@@ -206,14 +180,10 @@ export default function CaseDetail() {
     setUpdating(true);
     setMessage("");
     try {
-      // Fix: send null if date is empty, otherwise append time
       const payload = {
         ...editForm,
-        incident_date: editForm.incident_date
-          ? `${editForm.incident_date}T00:00:00`
-          : null,
+        incident_date: editForm.incident_date ? `${editForm.incident_date}T00:00:00` : null,
       };
-
       const response = await updateCase(id, payload);
       if (response.ok) {
         setMessage("✅ Case updated successfully");
@@ -221,9 +191,7 @@ export default function CaseDetail() {
         load();
       } else {
         const errorData = await response.json();
-        setMessage(
-          "❌ Failed to update case: " + (errorData.detail || "Unknown error"),
-        );
+        setMessage("❌ Failed to update case: " + (errorData.detail || "Unknown error"));
       }
     } catch (error) {
       setMessage("❌ Error updating case: " + error.message);
@@ -232,18 +200,13 @@ export default function CaseDetail() {
   };
 
   const handleCancelEdit = () => {
-    if (originalForm) {
-      setEditForm(originalForm);
-    }
+    if (originalForm) setEditForm(originalForm);
     setHasChanges(false);
     setIsEditing(false);
   };
 
   const handleUpload = async () => {
-    if (!file) {
-      alert("Select a file first!");
-      return;
-    }
+    if (!file) { alert("Select a file first!"); return; }
     setUploading(true);
     try {
       const res = await uploadEvidence(id, file);
@@ -261,7 +224,6 @@ export default function CaseDetail() {
     setUploading(false);
   };
 
-  // ── Navigate to the 3D reconstruction page ──────────────────────────────
   const handle3d = () => navigate(`/dashboard/cases/${id}/reconstruct`);
 
   const handleOpenDetectionModal = () => {
@@ -275,57 +237,36 @@ export default function CaseDetail() {
     setSelectedEvidence("");
     setSelectedModel("crime_scene");
     setConfidenceThreshold(0.25);
+    setDetectionSuccess(false); // Reset success state when opening modal
   };
 
   const getImageEvidence = () => {
     if (!data || !data.evidence) return [];
     return data.evidence.filter((ev) =>
-      ev.filename.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/),
+      ev.filename.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/)
     );
   };
 
+  // UPDATED: New handleRunDetection function
   const handleRunDetection = async (runOnAll = false) => {
     setRunningDetection(true);
     setDetectionMessage({ type: "", text: "" });
-
+    setDetectionSuccess(false);
     try {
-      const options = {
-        modelType: selectedModel,
-        confThreshold: confidenceThreshold,
-      };
-
+      const options = { modelType: selectedModel, confThreshold: confidenceThreshold };
       if (!runOnAll) {
         if (!selectedEvidence) {
-          setDetectionMessage({
-            type: "error",
-            text: "Please select an evidence file to analyze",
-          });
+          setDetectionMessage({ type: "error", text: "Please select an evidence file to analyze" });
           setRunningDetection(false);
           return;
         }
         options.evidenceId = parseInt(selectedEvidence);
       }
-
       const response = await runObjectDetection(id, options);
       const result = await response.json();
-
       if (response.ok) {
-        setDetectionMessage({
-          type: "success",
-          text: result.message || "Object detection completed successfully",
-        });
         await loadDetectionResults();
-        setTimeout(() => {
-          setShowDetectionModal(false);
-          setTimeout(() => {
-            if (resultsSectionRef.current) {
-              resultsSectionRef.current.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-              });
-            }
-          }, 100);
-        }, 1000);
+        setDetectionSuccess(true); // show the success/navigate screen
       } else {
         setDetectionMessage({
           type: "error",
@@ -342,13 +283,10 @@ export default function CaseDetail() {
     }
   };
 
-  const handleDeleteDetectionResult = async (resultId) => {
-  setConfirmDelete({ type: 'detection', id: resultId });
-};
-
   const handleDeleteEvidence = async (evidenceId, filename) => {
-  setConfirmDelete({ type: 'evidence', id: evidenceId, name: filename });
-};
+    setConfirmDelete({ type: "evidence", id: evidenceId, name: filename });
+  };
+
   const handleWitnessFormChange = (e) => {
     setWitnessForm({ ...witnessForm, [e.target.name]: e.target.value });
   };
@@ -358,37 +296,21 @@ export default function CaseDetail() {
       setMessage("Please fill in witness name and statement");
       return;
     }
-
-    // ✅ Pakistan phone validation on contact_info
-    if (
-      witnessForm.contact_info &&
-      !validatePakistaniPhone(witnessForm.contact_info)
-    ) {
-      setMessage(
-        "Invalid phone number. Use format: 03XX-XXXXXXX or +923XXXXXXXXX",
-      );
+    if (witnessForm.contact_info && !validatePakistaniPhone(witnessForm.contact_info)) {
+      setMessage("Invalid phone number. Use format: 03XX-XXXXXXX or +923XXXXXXXXX");
       return;
     }
-
     setAddingWitness(true);
     try {
       const response = await addWitnessStatement(id, witnessForm);
       if (response.ok) {
         setMessage("Witness statement added successfully");
         setShowWitnessForm(false);
-        setWitnessForm({
-          witness_name: "",
-          statement: "",
-          contact_info: "",
-          statement_date: "",
-        });
+        setWitnessForm({ witness_name: "", statement: "", contact_info: "", statement_date: "" });
         await loadWitnessStatements();
       } else {
         const errorData = await response.json();
-        setMessage(
-          "Failed to add witness statement: " +
-            (errorData.detail || "Unknown error"),
-        );
+        setMessage("Failed to add witness statement: " + (errorData.detail || "Unknown error"));
       }
     } catch (error) {
       setMessage("Error adding witness statement: " + error.message);
@@ -398,10 +320,7 @@ export default function CaseDetail() {
   };
 
   const handleDeleteWitnessStatement = async (witnessId) => {
-    if (
-      !window.confirm("Are you sure you want to delete this witness statement?")
-    )
-      return;
+    if (!window.confirm("Are you sure you want to delete this witness statement?")) return;
     setDeletingWitnessId(witnessId);
     try {
       const response = await deleteWitnessStatement(witnessId);
@@ -410,10 +329,7 @@ export default function CaseDetail() {
         await loadWitnessStatements();
       } else {
         const errorData = await response.json();
-        setMessage(
-          "Failed to delete witness statement: " +
-            (errorData.detail || "Unknown error"),
-        );
+        setMessage("Failed to delete witness statement: " + (errorData.detail || "Unknown error"));
       }
     } catch (error) {
       setMessage("Error deleting witness statement: " + error.message);
@@ -434,14 +350,10 @@ export default function CaseDetail() {
         setReportData(result);
         await loadSavedReports();
       } else {
-        setReportError(
-          result.detail || "Failed to generate report. Please try again.",
-        );
+        setReportError(result.detail || "Failed to generate report. Please try again.");
       }
     } catch (error) {
-      setReportError(
-        error.message || "Report generation failed. Please try again.",
-      );
+      setReportError(error.message || "Report generation failed. Please try again.");
     } finally {
       setGeneratingReport(false);
     }
@@ -475,9 +387,7 @@ export default function CaseDetail() {
         await loadSavedReports();
       } else {
         const err = await response.json();
-        setMessage(
-          "Failed to delete report: " + (err.detail || "Unknown error"),
-        );
+        setMessage("Failed to delete report: " + (err.detail || "Unknown error"));
       }
     } catch (error) {
       setMessage("Error deleting report: " + error.message);
@@ -500,20 +410,6 @@ export default function CaseDetail() {
     setShowReportModal(true);
   };
 
-  const formatConfidence = (confidence) => `${(confidence * 100).toFixed(1)}%`;
-
-  const getEvidenceFilename = (evidenceId) => {
-    if (!data || !data.evidence) return `Evidence #${evidenceId}`;
-    const evidenceItem = data.evidence.find((item) => item.id === evidenceId);
-    return evidenceItem ? evidenceItem.filename : `Evidence #${evidenceId}`;
-  };
-
-  const getModelName = (modelType) => {
-    if (modelType === "blood" || modelType === "blood_detection")
-      return "Blood Detection";
-    return "Crime Scene Detection";
-  };
-
   if (!data) return <div className="loading">Loading case details...</div>;
 
   const { case: caseData, evidence } = data;
@@ -529,25 +425,18 @@ export default function CaseDetail() {
               <div className="case-title-row">
                 <h1 className="case-title">{caseData.name}</h1>
                 <div className="case-header-actions">
-                  <button
-                    className="edit-case-btn"
-                    onClick={() => setIsEditing(true)}
-                  >
+                  <button className="edit-case-btn" onClick={() => setIsEditing(true)}>
                     Edit Case
                   </button>
                 </div>
               </div>
               <div className="case-meta">
                 <span className="case-id">Case #{caseData.id}</span>
-                <span
-                  className={`status-badge large ${caseData.status?.toLowerCase() || "new"}`}
-                >
+                <span className={`status-badge large ${caseData.status?.toLowerCase() || "new"}`}>
                   {caseData.status || "New"}
                 </span>
                 {caseData.priority && (
-                  <span
-                    className={`priority-badge large ${caseData.priority.toLowerCase()}`}
-                  >
+                  <span className={`priority-badge large ${caseData.priority.toLowerCase()}`}>
                     {caseData.priority} Priority
                   </span>
                 )}
@@ -565,11 +454,7 @@ export default function CaseDetail() {
                 >
                   {updating ? "Saving..." : "Save Changes"}
                 </button>
-                <button
-                  className="btn-cancel-edit"
-                  onClick={handleCancelEdit}
-                  disabled={updating}
-                >
+                <button className="btn-cancel-edit" onClick={handleCancelEdit} disabled={updating}>
                   Cancel
                 </button>
               </div>
@@ -612,22 +497,12 @@ export default function CaseDetail() {
           <div className="edit-form">
             <div className="form-group">
               <label>Case Name *</label>
-              <input
-                type="text"
-                name="name"
-                value={editForm.name}
-                onChange={handleEditChange}
-                required
-              />
+              <input type="text" name="name" value={editForm.name} onChange={handleEditChange} required />
             </div>
             <div className="form-row">
               <div className="form-group">
                 <label>Status</label>
-                <select
-                  name="status"
-                  value={editForm.status}
-                  onChange={handleEditChange}
-                >
+                <select name="status" value={editForm.status} onChange={handleEditChange}>
                   <option value="New">New</option>
                   <option value="Active">Active</option>
                   <option value="Pending">Pending</option>
@@ -637,11 +512,7 @@ export default function CaseDetail() {
               </div>
               <div className="form-group">
                 <label>Priority</label>
-                <select
-                  name="priority"
-                  value={editForm.priority}
-                  onChange={handleEditChange}
-                >
+                <select name="priority" value={editForm.priority} onChange={handleEditChange}>
                   <option value="">Select</option>
                   <option value="Low">Low</option>
                   <option value="Medium">Medium</option>
@@ -651,63 +522,32 @@ export default function CaseDetail() {
               </div>
               <div className="form-group">
                 <label>Category</label>
-                <select
-                  name="category"
-                  value={editForm.category}
-                  onChange={handleEditChange}
-                >
+                <select name="category" value={editForm.category} onChange={handleEditChange}>
                   <option value="">Select</option>
                   <option value="Theft">Theft</option>
                   <option value="Cybercrime">Cybercrime</option>
-                  <option value="Accident Reconstruction">
-                    Accident Reconstruction
-                  </option>
-                  <option value="General Investigation">
-                    General Investigation
-                  </option>
+                  <option value="Accident Reconstruction">Accident Reconstruction</option>
+                  <option value="General Investigation">General Investigation</option>
                 </select>
               </div>
             </div>
             <div className="form-row">
               <div className="form-group">
                 <label>Incident Date</label>
-                <input
-                  type="date"
-                  name="incident_date"
-                  value={editForm.incident_date}
-                  onChange={handleEditChange}
-                />
+                <input type="date" name="incident_date" value={editForm.incident_date} onChange={handleEditChange} />
               </div>
               <div className="form-group">
                 <label>Client/Department</label>
-                <input
-                  type="text"
-                  name="client"
-                  value={editForm.client}
-                  onChange={handleEditChange}
-                  placeholder="Enter client or department"
-                />
+                <input type="text" name="client" value={editForm.client} onChange={handleEditChange} placeholder="Enter client or department" />
               </div>
               <div className="form-group">
                 <label>Investigating Officer</label>
-                <input
-                  type="text"
-                  name="investigating_officer"
-                  value={editForm.investigating_officer}
-                  onChange={handleEditChange}
-                  placeholder="Enter officer name"
-                />
+                <input type="text" name="investigating_officer" value={editForm.investigating_officer} onChange={handleEditChange} placeholder="Enter officer name" />
               </div>
             </div>
             <div className="form-group">
               <label>Description</label>
-              <textarea
-                name="description"
-                value={editForm.description}
-                onChange={handleEditChange}
-                rows="5"
-                placeholder="Enter case description"
-              />
+              <textarea name="description" value={editForm.description} onChange={handleEditChange} rows="5" placeholder="Enter case description" />
             </div>
           </div>
         )}
@@ -725,13 +565,8 @@ export default function CaseDetail() {
         <div className="section-header">
           <h3>👥 Witness Statements</h3>
           <div className="section-header-actions">
-            <span className="evidence-count">
-              {witnessStatements.length} statements
-            </span>
-            <button
-              className="add-witness-btn"
-              onClick={() => setShowWitnessForm(!showWitnessForm)}
-            >
+            <span className="evidence-count">{witnessStatements.length} statements</span>
+            <button className="add-witness-btn" onClick={() => setShowWitnessForm(!showWitnessForm)}>
               {showWitnessForm ? "Cancel" : "+ Add Statement"}
             </button>
           </div>
@@ -742,59 +577,26 @@ export default function CaseDetail() {
             <div className="form-row">
               <div className="form-group">
                 <label>Witness Name *</label>
-                <input
-                  type="text"
-                  name="witness_name"
-                  value={witnessForm.witness_name}
-                  onChange={handleWitnessFormChange}
-                  placeholder="Enter witness name"
-                  required
-                />
+                <input type="text" name="witness_name" value={witnessForm.witness_name} onChange={handleWitnessFormChange} placeholder="Enter witness name" required />
               </div>
               <div className="form-group">
                 <label>Statement Date</label>
-                <input
-                  type="date"
-                  name="statement_date"
-                  value={witnessForm.statement_date}
-                  onChange={handleWitnessFormChange}
-                />
+                <input type="date" name="statement_date" value={witnessForm.statement_date} onChange={handleWitnessFormChange} />
               </div>
             </div>
             <div className="form-group">
               <label>Contact Information</label>
-              <input
-                type="text"
-                name="contact_info"
-                value={witnessForm.contact_info}
-                onChange={handleWitnessFormChange}
-                placeholder="Phone number, email, or address"
-              />
+              <input type="text" name="contact_info" value={witnessForm.contact_info} onChange={handleWitnessFormChange} placeholder="Phone number, email, or address" />
             </div>
             <div className="form-group">
               <label>Statement *</label>
-              <textarea
-                name="statement"
-                value={witnessForm.statement}
-                onChange={handleWitnessFormChange}
-                rows="4"
-                placeholder="Enter witness statement"
-                required
-              />
+              <textarea name="statement" value={witnessForm.statement} onChange={handleWitnessFormChange} rows="4" placeholder="Enter witness statement" required />
             </div>
             <div className="form-actions">
-              <button
-                className="btn-save-edit"
-                onClick={handleAddWitnessStatement}
-                disabled={addingWitness}
-              >
+              <button className="btn-save-edit" onClick={handleAddWitnessStatement} disabled={addingWitness}>
                 {addingWitness ? "Adding..." : "Add Statement"}
               </button>
-              <button
-                className="btn-cancel-edit"
-                onClick={() => setShowWitnessForm(false)}
-                disabled={addingWitness}
-              >
+              <button className="btn-cancel-edit" onClick={() => setShowWitnessForm(false)} disabled={addingWitness}>
                 Cancel
               </button>
             </div>
@@ -864,8 +666,24 @@ export default function CaseDetail() {
               {imageEvidence.length === 0 ? "No Images" : "Run Detection"}
             </button>
             <small className="tool-hint">
-              {imageEvidence.length} image
-              {imageEvidence.length !== 1 ? "s" : ""} available
+              {imageEvidence.length} image{imageEvidence.length !== 1 ? "s" : ""} available
+            </small>
+          </div>
+
+          {/* Detection Analytics card */}
+          <div className="analysis-tool-card">
+            <div className="tool-icon">📊</div>
+            <h4>Detection Analytics</h4>
+            <p>View detection results, confidence breakdown, and evidence summary</p>
+            <button
+              className="tool-btn analytics-btn"
+              onClick={() => navigate(`/dashboard/cases/${id}/analytics`)}
+              disabled={detectionResults.length === 0}
+            >
+              {detectionResults.length === 0 ? "No Results Yet" : `View Analytics`}
+            </button>
+            <small className="tool-hint">
+              {detectionResults.length} result{detectionResults.length !== 1 ? "s" : ""} available
             </small>
           </div>
 
@@ -883,15 +701,9 @@ export default function CaseDetail() {
             <div className="tool-icon">📄</div>
             <h4>Forensic Report</h4>
             <p>Generate AI-assisted forensic report</p>
-            <button
-              className="tool-btn tertiary"
-              onClick={handleGenerateReport}
-              disabled={generatingReport}
-            >
+            <button className="tool-btn tertiary" onClick={handleGenerateReport} disabled={generatingReport}>
               {generatingReport ? (
-                <>
-                  <span className="loading-spinner"></span> Generating...
-                </>
+                <><span className="loading-spinner"></span> Generating...</>
               ) : (
                 "Generate Report"
               )}
@@ -922,11 +734,7 @@ export default function CaseDetail() {
                 <span className="file-icon">📎</span>
                 {file ? file.name : "Choose File"}
               </label>
-              <button
-                onClick={handleUpload}
-                className="upload-btn"
-                disabled={uploading || !file}
-              >
+              <button onClick={handleUpload} className="upload-btn" disabled={uploading || !file}>
                 {uploading ? "Uploading..." : "Upload"}
               </button>
             </div>
@@ -952,9 +760,7 @@ export default function CaseDetail() {
                     {deletingEvidenceId === ev.id ? "⏳" : "×"}
                   </button>
                   <div className="evidence-preview">
-                    {ev.filename
-                      .toLowerCase()
-                      .match(/\.(jpg|jpeg|png|gif|bmp|webp)$/) ? (
+                    {ev.filename.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/) ? (
                       <img
                         src={`http://127.0.0.1:8000/uploads/${ev.filename}`}
                         alt={ev.filename}
@@ -968,20 +774,16 @@ export default function CaseDetail() {
                     <div
                       className="file-icon"
                       style={{
-                        display: ev.filename
-                          .toLowerCase()
-                          .match(/\.(jpg|jpeg|png|gif|bmp|webp)$/)
-                          ? "none"
-                          : "flex",
+                        display: ev.filename.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/) ? "none" : "flex",
                       }}
                     >
                       {ev.filename.toLowerCase().match(/\.(pdf)$/)
                         ? "📄"
                         : ev.filename.toLowerCase().match(/\.(mp4|avi|mov)$/)
-                          ? "🎥"
-                          : ev.filename.toLowerCase().match(/\.(doc|docx)$/)
-                            ? "📝"
-                            : "📁"}
+                        ? "🎥"
+                        : ev.filename.toLowerCase().match(/\.(doc|docx)$/)
+                        ? "📝"
+                        : "📁"}
                     </div>
                   </div>
                   <div className="evidence-info">
@@ -1002,229 +804,6 @@ export default function CaseDetail() {
         </div>
       </section>
 
-      {/* Detection Results */}
-      {detectionResults.length > 0 && (
-        <section className="detection-results-section" ref={resultsSectionRef}>
-          <div className="section-header">
-            <h3>🔍 Detection Results</h3>
-            <span className="evidence-count">
-              {detectionResults.length} analyzed
-            </span>
-          </div>
-
-          <div className="detection-results-horizontal">
-            {detectionResults.map((result) => {
-              const detectionData = result.results;
-              const detections = detectionData?.detections || [];
-              const evidenceItem = data.evidence.find(
-                (ev) => ev.id === result.evidence_id,
-              );
-              const imagePath = evidenceItem
-                ? `http://127.0.0.1:8000/uploads/${evidenceItem.filename}`
-                : null;
-
-              return (
-                <div
-                  key={result.id}
-                  className="detection-result-horizontal-card"
-                >
-                  <button
-                    className="delete-result-btn-horizontal"
-                    onClick={() => handleDeleteDetectionResult(result.id)}
-                    disabled={deletingResultId === result.id}
-                    title="Delete detection result"
-                  >
-                    {deletingResultId === result.id ? "⏳" : "×"}
-                  </button>
-                  <div className="detection-image-container">
-                    {imagePath && (
-                      <div
-                        className="detection-image-wrapper"
-                        style={{
-                          position: "relative",
-                          display: "inline-block",
-                          lineHeight: 0,
-                        }}
-                      >
-                        <img
-                          src={imagePath}
-                          alt={getEvidenceFilename(result.evidence_id)}
-                          className="detection-result-image"
-                          style={{
-                            display: "block",
-                            width: "100%",
-                            height: "auto",
-                            maxHeight: "300px",
-                            objectFit: "contain",
-                          }}
-                        />
-                        {(() => {
-                          const imgW =
-                            detectionData?.image_dimensions?.width || 640;
-                          const imgH =
-                            detectionData?.image_dimensions?.height || 640;
-                          return (
-                            <svg
-                              viewBox={`0 0 ${imgW} ${imgH}`}
-                              preserveAspectRatio="xMidYMid meet"
-                              style={{
-                                position: "absolute",
-                                top: 0,
-                                left: 0,
-                                width: "100%",
-                                height: "100%",
-                                pointerEvents: "none",
-                              }}
-                            >
-                              {detections.map((detection, idx) => {
-                                const bbox = detection.bbox;
-                                const colors = [
-                                  "#3b82f6",
-                                  "#10b981",
-                                  "#f59e0b",
-                                  "#ef4444",
-                                  "#8b5cf6",
-                                  "#ec4899",
-                                ];
-                                const color = colors[idx % colors.length];
-                                const fontSize = Math.max(imgW, imgH) * 0.022;
-                                const labelH = fontSize * 1.6;
-                                const labelW =
-                                  (detection.class_name.length + 6) *
-                                  fontSize *
-                                  0.65;
-                                const labelY =
-                                  bbox.y1 >= labelH
-                                    ? bbox.y1 - labelH
-                                    : bbox.y1 + labelH;
-                                const textY =
-                                  bbox.y1 >= labelH
-                                    ? bbox.y1 - labelH * 0.25
-                                    : bbox.y1 + labelH * 0.85;
-
-                                return (
-                                  <g key={idx}>
-                                    <rect
-                                      x={bbox.x1}
-                                      y={bbox.y1}
-                                      width={bbox.x2 - bbox.x1}
-                                      height={bbox.y2 - bbox.y1}
-                                      fill="none"
-                                      stroke={color}
-                                      strokeWidth={Math.max(imgW, imgH) * 0.004}
-                                      opacity="0.9"
-                                    />
-                                    <rect
-                                      x={bbox.x1}
-                                      y={labelY}
-                                      width={labelW}
-                                      height={labelH}
-                                      fill={color}
-                                      opacity="0.9"
-                                      rx={fontSize * 0.2}
-                                    />
-                                    <text
-                                      x={bbox.x1 + fontSize * 0.3}
-                                      y={textY}
-                                      fill="white"
-                                      fontSize={fontSize}
-                                      fontWeight="bold"
-                                    >
-                                      {detection.class_name}{" "}
-                                      {formatConfidence(detection.confidence)}
-                                    </text>
-                                  </g>
-                                );
-                              })}
-                            </svg>
-                          );
-                        })()}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="detection-details-container">
-                    <div className="detection-header-row">
-                      <div>
-                        <h4 className="detection-title">
-                          {getEvidenceFilename(result.evidence_id)}
-                        </h4>
-                        <div className="detection-meta">
-                          {result.model_type && (
-                            <span className="model-badge-horizontal">
-                              {getModelName(result.model_type)}
-                            </span>
-                          )}
-                          {detectionData?.total_detections > 0 && (
-                            <span className="detection-count-badge">
-                              {detectionData.total_detections} objects detected
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {detectionData?.image_dimensions && (
-                        <div className="detection-stats-mini">
-                          <div className="stat-mini">
-                            <span className="stat-value-mini resolution-display">
-                              {detectionData.image_dimensions.width}×
-                              {detectionData.image_dimensions.height}
-                            </span>
-                            <span className="stat-label-mini">Resolution</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="detections-grid">
-                      {detections.length > 0 ? (
-                        detections.map((detection, index) => (
-                          <div key={index} className="detection-chip">
-                            <span className="chip-icon">🎯</span>
-                            <div className="chip-content">
-                              <span className="chip-label">
-                                {detection.class_name}
-                              </span>
-                              <span className="chip-confidence">
-                                {formatConfidence(detection.confidence)}
-                              </span>
-                            </div>
-                            {detection.category && (
-                              <span className="chip-category">
-                                {detection.category}
-                              </span>
-                            )}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="no-detections-horizontal">
-                          <span>⚠️ No objects detected in this image</span>
-                        </div>
-                      )}
-                    </div>
-                    {detectionData?.category_counts &&
-                      Object.keys(detectionData.category_counts).length > 0 && (
-                        <div className="category-summary">
-                          <strong>Categories Found:</strong>
-                          {Object.entries(detectionData.category_counts).map(
-                            ([category, count]) => (
-                              <span key={category} className="category-tag">
-                                {category} ({count})
-                              </span>
-                            ),
-                          )}
-                        </div>
-                      )}
-                    <div className="detection-timestamp">
-                      📅 Analyzed:{" "}
-                      {new Date(result.created_at).toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
       {/* Saved Reports Section */}
       <section className="saved-reports-section">
         <div className="section-header">
@@ -1236,9 +815,7 @@ export default function CaseDetail() {
         {savedReports.length === 0 ? (
           <div className="empty-state">
             <p>No reports generated yet</p>
-            <small>
-              Use the Generate Report button in Analysis Tools to create one
-            </small>
+            <small>Use the Generate Report button in Analysis Tools to create one</small>
           </div>
         ) : (
           <div className="saved-reports-list">
@@ -1246,19 +823,11 @@ export default function CaseDetail() {
               <div key={report.id} className="saved-report-card">
                 <div className="saved-report-info">
                   <div className="saved-report-meta">
-                    <span className="report-meta-item">
-                      🖼️ {report.evidence_count} evidence
-                    </span>
-                    <span className="report-meta-item">
-                      🔍 {report.detection_count} detections
-                    </span>
-                    <span className="report-meta-item">
-                      👥 {report.witness_count} witnesses
-                    </span>
+                    <span className="report-meta-item">🖼️ {report.evidence_count} evidence</span>
+                    <span className="report-meta-item">🔍 {report.detection_count} detections</span>
+                    <span className="report-meta-item">👥 {report.witness_count} witnesses</span>
                     {report.generated_by && (
-                      <span className="report-meta-item">
-                        👤 {report.generated_by}
-                      </span>
+                      <span className="report-meta-item">👤 {report.generated_by}</span>
                     )}
                   </div>
                   <div className="saved-report-timestamp">
@@ -1266,10 +835,7 @@ export default function CaseDetail() {
                   </div>
                 </div>
                 <div className="saved-report-actions">
-                  <button
-                    className="btn-view-report"
-                    onClick={() => handleViewSavedReport(report)}
-                  >
+                  <button className="btn-view-report" onClick={() => handleViewSavedReport(report)}>
                     👁 View
                   </button>
                   <button
@@ -1277,11 +843,7 @@ export default function CaseDetail() {
                     onClick={() => handleDeleteSavedReport(report.id)}
                     disabled={deletingReportId === report.id}
                     title="Delete report"
-                    style={{
-                      position: "static",
-                      width: "32px",
-                      height: "32px",
-                    }}
+                    style={{ position: "static", width: "32px", height: "32px" }}
                   >
                     {deletingReportId === report.id ? "⏳" : "×"}
                   </button>
@@ -1292,67 +854,97 @@ export default function CaseDetail() {
         )}
       </section>
 
-      {/* Object Detection Modal */}
+      {/* UPDATED: Object Detection Modal with success screen */}
       {showDetectionModal && (
-        <div
-          className="modal-overlay"
-          onClick={() => setShowDetectionModal(false)}
-        >
+        <div className="modal-overlay" onClick={() => { setShowDetectionModal(false); setDetectionSuccess(false); }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Run Object Detection</h3>
+              <h3>{detectionSuccess ? "Detection Complete" : "Run Object Detection"}</h3>
               <button
                 className="modal-close"
-                onClick={() => setShowDetectionModal(false)}
+                onClick={() => { setShowDetectionModal(false); setDetectionSuccess(false); }}
               >
                 ×
               </button>
             </div>
             <div className="modal-body">
-              {detectionMessage.text && (
-                <div className={`detection-message ${detectionMessage.type}`}>
-                  {detectionMessage.text}
-                </div>
-              )}
-              <div className="detection-settings">
-                <div className="form-group">
-                  <div className="model-info-box">
-                    <strong>Object Detection AI</strong>
-                    <p className="model-description">
-                      Detects weapons, blood evidence, glass, and human presence
-                      in crime scenes.
+
+              {/* Success screen */}
+              {detectionSuccess ? (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "20px", padding: "16px 0 8px" }}>
+                  <div style={{ fontSize: "56px", lineHeight: 1 }}>✅</div>
+                  <div style={{ textAlign: "center" }}>
+                    <p style={{ color: "#f1f1f1", fontSize: "16px", fontWeight: 600, margin: "0 0 6px" }}>
+                      Object detection completed successfully
+                    </p>
+                    <p style={{ color: "#9ca3af", fontSize: "13px", margin: 0 }}>
+                      Results have been saved. Would you like to view them?
                     </p>
                   </div>
+                  <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
+                    <button
+                      className="btn-cancel-edit"
+                      onClick={() => { setShowDetectionModal(false); setDetectionSuccess(false); }}
+                    >
+                      Later
+                    </button>
+                    <button
+                      className="btn-run-detection"
+                      onClick={() => {
+                        setShowDetectionModal(false);
+                        setDetectionSuccess(false);
+                        navigate(`/dashboard/cases/${id}/analytics`);
+                      }}
+                    >
+                      View Results →
+                    </button>
+                  </div>
                 </div>
-                <div className="form-group">
-                  <label>Select Evidence to Analyze:</label>
-                  <select
-                    value={selectedEvidence}
-                    onChange={(e) => setSelectedEvidence(e.target.value)}
-                    disabled={runningDetection}
-                    className="evidence-select"
-                  >
-                    <option value="">Choose an image...</option>
-                    {imageEvidence.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.filename}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="detection-controls">
-                <button
-                  className="btn-run-detection"
-                  onClick={() => handleRunDetection(false)}
-                  disabled={runningDetection || !selectedEvidence}
-                >
-                  {runningDetection && (
-                    <span className="loading-spinner"></span>
+              ) : (
+                /* Normal detection form */
+                <>
+                  {detectionMessage.text && (
+                    <div className={`detection-message ${detectionMessage.type}`}>
+                      {detectionMessage.text}
+                    </div>
                   )}
-                  {runningDetection ? "Analyzing..." : "Run Detection"}
-                </button>
-              </div>
+                  <div className="detection-settings">
+                    <div className="form-group">
+                      <div className="model-info-box">
+                        <strong>Object Detection AI</strong>
+                        <p className="model-description">
+                          Detects weapons, blood evidence, glass, and human presence in crime scenes.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Select Evidence to Analyze:</label>
+                      <select
+                        value={selectedEvidence}
+                        onChange={(e) => setSelectedEvidence(e.target.value)}
+                        disabled={runningDetection}
+                        className="evidence-select"
+                      >
+                        <option value="">Choose an image...</option>
+                        {imageEvidence.map((item) => (
+                          <option key={item.id} value={item.id}>{item.filename}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="detection-controls">
+                    <button
+                      className="btn-run-detection"
+                      onClick={() => handleRunDetection(false)}
+                      disabled={runningDetection || !selectedEvidence}
+                    >
+                      {runningDetection && <span className="loading-spinner"></span>}
+                      {runningDetection ? "Analyzing..." : "Run Detection"}
+                    </button>
+                  </div>
+                </>
+              )}
+
             </div>
           </div>
         </div>
@@ -1360,15 +952,11 @@ export default function CaseDetail() {
 
       {/* Report Modal */}
       {showReportModal && (
-        <div
-          className="modal-overlay"
-          onClick={() => !generatingReport && setShowReportModal(false)}
-        >
+        <div className="modal-overlay" onClick={() => !generatingReport && setShowReportModal(false)}>
           <div
             className={`modal-content report-modal-content ${reportFullscreen ? "report-modal-fullscreen" : ""}`}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* ── Header (unchanged) ── */}
             <div className="modal-header">
               <h3>📄 Forensic Investigation Report</h3>
               <div className="report-modal-header-actions">
@@ -1381,20 +969,14 @@ export default function CaseDetail() {
                 </button>
                 <button
                   className="modal-close"
-                  onClick={() => {
-                    setShowReportModal(false);
-                    setReportFullscreen(false);
-                  }}
+                  onClick={() => { setShowReportModal(false); setReportFullscreen(false); }}
                   disabled={generatingReport}
                 >
                   ×
                 </button>
               </div>
             </div>
-
-            {/* ── Body ── */}
             <div className="modal-body">
-              {/* Loading */}
               {generatingReport && (
                 <div className="report-loading">
                   <div className="report-loading-spinner"></div>
@@ -1402,51 +984,24 @@ export default function CaseDetail() {
                   <small>This may take up to 30 seconds</small>
                 </div>
               )}
-
-              {/* Error */}
               {reportError && !generatingReport && (
                 <div className="detection-message error">{reportError}</div>
               )}
-
-              {/* Report */}
               {reportData && !generatingReport && (
                 <>
-                  {/* Meta strip */}
                   <div className="report-meta">
-                    <span className="report-meta-item">
-                      📁 Case: {reportData.case_name}
-                    </span>
-                    <span className="report-meta-item">
-                      🖼️ Evidence: {reportData.evidence_count}
-                    </span>
-                    <span className="report-meta-item">
-                      🔍 Detections: {reportData.detection_count}
-                    </span>
-                    <span className="report-meta-item">
-                      👥 Witnesses: {reportData.witness_count}
-                    </span>
+                    <span className="report-meta-item">📁 Case: {reportData.case_name}</span>
+                    <span className="report-meta-item">🖼️ Evidence: {reportData.evidence_count}</span>
+                    <span className="report-meta-item">🔍 Detections: {reportData.detection_count}</span>
+                    <span className="report-meta-item">👥 Witnesses: {reportData.witness_count}</span>
                     <span className="report-meta-item">
                       🕒 {new Date(reportData.generated_at).toLocaleString()}
                     </span>
                   </div>
-
-                  {/* Action buttons */}
                   <div className="report-actions">
-                    <button
-                      className="btn-save-edit"
-                      onClick={handleCopyReport}
-                    >
-                      📋 Copy Report
-                    </button>
-                    <button
-                      className="btn-run-detection"
-                      onClick={handleDownloadReport}
-                    >
-                      ⬇️ Download .txt
-                    </button>
+                    <button className="btn-save-edit" onClick={handleCopyReport}>📋 Copy Report</button>
+                    <button className="btn-run-detection" onClick={handleDownloadReport}>⬇️ Download .txt</button>
                   </div>
-
-                  {/* ── Structured Renderer (replaces the old <pre>) ── */}
                   <div className="report-renderer-wrap">
                     <ForensicReportRenderer reportText={reportData.report} />
                   </div>
@@ -1457,70 +1012,54 @@ export default function CaseDetail() {
         </div>
       )}
 
-      {/* Custom Confirm Modal */}
-{confirmDelete && (
-  <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
-    <div className="modal-content" style={{ maxWidth: '420px' }} onClick={e => e.stopPropagation()}>
-      <div className="modal-header">
-        <h3>Confirm Delete</h3>
-        <button className="modal-close" onClick={() => setConfirmDelete(null)}>×</button>
-      </div>
-      <div className="modal-body" style={{ padding: '1.5rem' }}>
-        <p style={{ marginBottom: '1.5rem', color: '#94a3b8' }}>
-          {confirmDelete.type === 'evidence'
-            ? `Are you sure you want to delete "${confirmDelete.name}"? This will also delete any associated detection results.`
-            : 'Are you sure you want to delete this detection result?'}
-        </p>
-        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-          <button className="btn-cancel-edit" onClick={() => setConfirmDelete(null)}>Cancel</button>
-          <button
-            className="btn-run-detection"
-            style={{ background: '#ef4444' }}
-            onClick={async () => {
-              const { type, id, name } = confirmDelete;
-              setConfirmDelete(null);
-              if (type === 'evidence') {
-                setDeletingEvidenceId(id);
-                try {
-                  const response = await deleteEvidence(id);
-                  if (response.ok) {
-                    setMessage('✅ Evidence deleted successfully');
-                    await load();
-                  } else {
-                    const err = await response.json();
-                    setMessage('❌ Failed to delete: ' + (err.detail || 'Unknown error'));
-                  }
-                } catch (error) {
-                  setMessage('❌ Error deleting evidence: ' + error.message);
-                } finally {
-                  setDeletingEvidenceId(null);
-                }
-              } else {
-                setDeletingResultId(id);
-                try {
-                  const response = await deleteDetectionResult(id);
-                  if (response.ok) {
-                    setMessage('✅ Detection result deleted successfully');
-                    await loadDetectionResults();
-                  } else {
-                    const err = await response.json();
-                    setMessage('❌ Failed to delete: ' + (err.detail || 'Unknown error'));
-                  }
-                } catch (error) {
-                  setMessage('❌ Error deleting result: ' + error.message);
-                } finally {
-                  setDeletingResultId(null);
-                }
-              }
-            }}
-          >
-            Delete
-          </button>
+      {/* Confirm Delete Modal */}
+      {confirmDelete && (
+        <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
+          <div className="modal-content" style={{ maxWidth: "420px" }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Confirm Delete</h3>
+              <button className="modal-close" onClick={() => setConfirmDelete(null)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: "1.5rem" }}>
+              <p style={{ marginBottom: "1.5rem", color: "#94a3b8" }}>
+                {confirmDelete.type === "evidence"
+                  ? `Are you sure you want to delete "${confirmDelete.name}"? This will also delete any associated detection results.`
+                  : "Are you sure you want to delete this detection result?"}
+              </p>
+              <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+                <button className="btn-cancel-edit" onClick={() => setConfirmDelete(null)}>Cancel</button>
+                <button
+                  className="btn-run-detection"
+                  style={{ background: "#ef4444" }}
+                  onClick={async () => {
+                    const { type, id: itemId, name } = confirmDelete;
+                    setConfirmDelete(null);
+                    if (type === "evidence") {
+                      setDeletingEvidenceId(itemId);
+                      try {
+                        const response = await deleteEvidence(itemId);
+                        if (response.ok) {
+                          setMessage("✅ Evidence deleted successfully");
+                          await load();
+                        } else {
+                          const err = await response.json();
+                          setMessage("❌ Failed to delete: " + (err.detail || "Unknown error"));
+                        }
+                      } catch (error) {
+                        setMessage("❌ Error deleting evidence: " + error.message);
+                      } finally {
+                        setDeletingEvidenceId(null);
+                      }
+                    }
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  </div>
-)}
+      )}
     </div>
   );
 }

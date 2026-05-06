@@ -18,6 +18,7 @@ import AdminContactRequests from "./pages/AdminContactRequests";
 import AdminInvestigators from "./pages/AdminInvestigators";
 import AdminCases from "./pages/AdminCases";
 import PendingInvestigators from "./pages/PendingInvestigators";
+import CaseAnalytics from "./pages/CaseAnalytics";
 
 export default function App() {
   const [authState, setAuthState] = useState({
@@ -138,6 +139,7 @@ export default function App() {
           <Route path="cases/create" element={<CreateCase />} />
           <Route path="cases/:id" element={<CaseDetail />} />
           <Route path="cases/:id/reconstruct" element={<Reconstruction3D />} />
+          <Route path="cases/:id/analytics" element={<CaseAnalytics />} />
           <Route path="settings" element={<Settings />} />
         </Route>
 
