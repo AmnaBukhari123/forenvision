@@ -115,6 +115,8 @@ export default function Reconstruction3D() {
   const [removeBg, setRemoveBg]           = useState(true);
   const [activeJobId, setActiveJobId]     = useState(null);
   const [viewerJob, setViewerJob]         = useState(null);
+  const isClosed =
+  caseData?.status?.toLowerCase() === "closed";
 
   // ── Load ──────────────────────────────────────────────────────────────────
   const loadAll = useCallback(async () => {
@@ -276,7 +278,11 @@ export default function Reconstruction3D() {
                   <div className="r3d-image-fallback" style={{ display: "none" }}>🖼</div>
                 </div>
                 <div className="r3d-image-label"><span title={img.filename}>{img.filename}</span></div>
-                {!isJobRunning && <div className="r3d-image-overlay"><span>Generate 3D →</span></div>}
+                {!isJobRunning && !isClosed && (
+  <div className="r3d-image-overlay">
+    <span>Generate 3D →</span>
+  </div>
+)}
               </button>
             ))}
           </div>

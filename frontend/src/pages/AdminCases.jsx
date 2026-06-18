@@ -22,6 +22,7 @@ export default function AdminCases() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterInvestigator, setFilterInvestigator] = useState("all");
   const [message, setMessage] = useState({ type: "", text: "" });
+  const [filterDate, setFilterDate] = useState("");
 
   useEffect(() => {
     loadCases();
@@ -92,14 +93,24 @@ export default function AdminCases() {
     );
   };
 
-  const filteredCases = cases.filter(caseItem => {
-    const q = searchQuery.toLowerCase();
-    return (
-      caseItem.name.toLowerCase().includes(q) ||
-      (caseItem.client && caseItem.client.toLowerCase().includes(q)) ||
-      (caseItem.category && caseItem.category.toLowerCase().includes(q))
-    );
-  });
+  const filteredCases = cases.filter((caseItem) => {
+  const q = searchQuery.toLowerCase();
+
+  const matchesSearch =
+    caseItem.name.toLowerCase().includes(q) ||
+    (caseItem.client &&
+      caseItem.client.toLowerCase().includes(q)) ||
+    (caseItem.category &&
+      caseItem.category.toLowerCase().includes(q));
+
+  const matchesDate =
+    !filterDate ||
+    new Date(caseItem.created_at)
+      .toISOString()
+      .split("T")[0] === filterDate;
+
+  return matchesSearch && matchesDate;
+});
 
   const caseStats = {
     total: filteredCases.length,
@@ -146,6 +157,12 @@ export default function AdminCases() {
             <option value="Pending">Pending</option>
             <option value="Closed">Closed</option>
           </select>
+
+          <input
+  type="date"
+  value={filterDate}
+  onChange={(e) => setFilterDate(e.target.value)}
+/>
 
           <select value={filterInvestigator} onChange={(e) => setFilterInvestigator(e.target.value)}>
             <option value="all">All Investigators</option>

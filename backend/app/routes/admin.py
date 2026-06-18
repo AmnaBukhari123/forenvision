@@ -49,7 +49,6 @@ class InvestigatorUpdate(BaseModel):
     department: Optional[str] = None
     is_available: Optional[bool] = None
 
-# =============== DASHBOARD STATS ===============
 @router.get("/dashboard/stats")
 def get_admin_dashboard_stats(current_user: dict = Depends(require_admin)):
     """Get overview statistics for admin dashboard"""
@@ -57,7 +56,7 @@ def get_admin_dashboard_stats(current_user: dict = Depends(require_admin)):
     cur = conn.cursor()
     
     try:
-        # Total users by role - FIXED: Changed 'role' to 'roles'
+        # Total users by role
         cur.execute("""
             SELECT roles, COUNT(*) as count 
             FROM users 
@@ -74,6 +73,42 @@ def get_admin_dashboard_stats(current_user: dict = Depends(require_admin)):
         """)
         cases_by_status_raw = cur.fetchall()
         cases_by_status = {row['status']: row['count'] for row in cases_by_status_raw}
+
+        # ✅ NEW: Cases by category
+        cur.execute("""
+            SELECT COALESCE(category, 'Uncategorized') as category, COUNT(*) as count
+            FROM cases
+            GROUP BY category
+            ORDER BY count DESC
+        """)
+        cases_by_category_raw = cur.fetchall()
+        cases_by_category = {row['category']: row['count'] for row in cases_by_category_raw}
+
+        # ✅ NEW: Cases by priority
+        cur.execute("""
+            SELECT COALESCE(priority, 'Unspecified') as priority, COUNT(*) as count
+            FROM cases
+            GROUP BY priority
+        """)
+        cases_by_priority_raw = cur.fetchall()
+        cases_by_priority = {row['priority']: row['count'] for row in cases_by_priority_raw}
+
+        # ✅ NEW: Monthly case trend, last 6 months, zero-filled
+        cur.execute("""
+            SELECT 
+                TO_CHAR(month_series, 'Mon YYYY') as month,
+                COALESCE(COUNT(c.id), 0) as count
+            FROM generate_series(
+                DATE_TRUNC('month', NOW() - INTERVAL '5 months'),
+                DATE_TRUNC('month', NOW()),
+                INTERVAL '1 month'
+            ) as month_series
+            LEFT JOIN cases c ON DATE_TRUNC('month', c.created_at) = month_series
+            GROUP BY month_series
+            ORDER BY month_series ASC
+        """)
+        monthly_trend_raw = cur.fetchall()
+        monthly_trend = [{"month": row['month'], "count": row['count']} for row in monthly_trend_raw]
         
         # Contact requests by status
         cur.execute("""
@@ -88,7 +123,7 @@ def get_admin_dashboard_stats(current_user: dict = Depends(require_admin)):
         cur.execute("SELECT COUNT(*) as count FROM contact_requests WHERE status = 'pending'")
         pending_requests = cur.fetchone()['count']
         
-        # Active investigators - FIXED: Changed 'role' to 'roles'
+        # Active investigators
         cur.execute("SELECT COUNT(*) as count FROM users WHERE roles = 'investigator' AND is_available = true")
         active_investigators = cur.fetchone()['count']
         
@@ -110,6 +145,9 @@ def get_admin_dashboard_stats(current_user: dict = Depends(require_admin)):
         return {
             "users_by_role": users_by_role,
             "cases_by_status": cases_by_status,
+            "cases_by_category": cases_by_category,       # ✅ NEW
+            "cases_by_priority": cases_by_priority,        # ✅ NEW
+            "monthly_trend": monthly_trend,                 # ✅ NEW
             "requests_by_status": requests_by_status,
             "pending_requests": pending_requests,
             "active_investigators": active_investigators,
@@ -117,7 +155,7 @@ def get_admin_dashboard_stats(current_user: dict = Depends(require_admin)):
             "total_users": sum(users_by_role.values()),
             "total_cases": sum(cases_by_status.values()),
             "total_requests": sum(requests_by_status.values()),
-             "pending_investigators": pending_investigators
+            "pending_investigators": pending_investigators
         }
     except Exception as e:
         cur.close()
@@ -662,6 +700,74 @@ def update_investigator(
 #         cur.close()
 #         database.release_connection(conn)
 #         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/investigators/{investigator_id}")
+def delete_investigator(
+    investigator_id: int,
+    current_user: dict = Depends(require_admin)
+):
+    conn = database.get_connection()
+    cur = conn.cursor()
+
+    try:
+        # Verify investigator exists
+        cur.execute("""
+            SELECT id, name
+            FROM users
+            WHERE id = %s
+            AND roles = 'investigator'
+        """, (investigator_id,))
+
+        investigator = cur.fetchone()
+
+        if not investigator:
+            raise HTTPException(
+                status_code=404,
+                detail="Investigator not found"
+            )
+
+        # Optional: prevent deletion if cases assigned
+        cur.execute("""
+            SELECT COUNT(*) AS count
+            FROM cases
+            WHERE user_id = %s
+        """, (investigator_id,))
+
+        case_count = cur.fetchone()["count"]
+
+        if case_count > 0:
+            raise HTTPException(
+    status_code=400,
+    detail=f"Cannot delete investigator because {case_count} case(s) are assigned. Please reassign the cases or mark the investigator unavailable."
+)
+
+        # Delete investigator
+        cur.execute("""
+            DELETE FROM users
+            WHERE id = %s
+        """, (investigator_id,))
+
+        conn.commit()
+
+        return {
+            "message": "Investigator deleted successfully"
+        }
+
+    except HTTPException:
+        conn.rollback()
+        raise
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+    finally:
+        cur.close()
+        database.release_connection(conn)
 
 # =============== CASES OVERVIEW ===============
 @router.get("/cases")

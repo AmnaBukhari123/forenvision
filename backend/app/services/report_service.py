@@ -3,8 +3,7 @@ import os
 import json
 import requests
 from datetime import datetime
-from database import get_connection
-
+from database import get_connection, release_connection
 import time
 import random
 
@@ -62,6 +61,7 @@ def get_case_data(case_id: int) -> dict:
         }
     finally:
         conn.close()
+        release_connection(conn)
 
 
 def build_gemini_prompt(data: dict) -> str:
@@ -173,13 +173,7 @@ Based on detected objects, provide a professional forensic interpretation of the
 6. WITNESS TESTIMONY SUMMARY
 For each witness follow the exact Witness Name / Contact / Date of Statement / Summary format above.
 
-7. 3D RECONSTRUCTION STATUS
-State that 3D reconstruction analysis is pending if not available.
-
-8. INVESTIGATOR NOTES
-Leave a placeholder section for manual investigator notes.
-
-9. AI-ASSISTED CONCLUSIONS
+7. AI-ASSISTED CONCLUSIONS
 Summarize findings and suggest numbered next investigative steps.
 End with: Disclaimer: AI findings must be verified by a trained forensic investigator.
 
@@ -241,6 +235,7 @@ def save_report_to_db(case_id: int, user_id: int, report_text: str,
         return report_id
     finally:
         conn.close()
+        release_connection(conn)
 
 
 def get_reports_for_case(case_id: int) -> list:
@@ -261,6 +256,7 @@ def get_reports_for_case(case_id: int) -> list:
         return [dict(r) for r in rows]
     finally:
         conn.close()
+        release_connection(conn)
 
 
 def delete_report_from_db(report_id: int) -> bool:
@@ -273,6 +269,7 @@ def delete_report_from_db(report_id: int) -> bool:
         return cur.rowcount > 0
     finally:
         conn.close()
+        release_connection(conn)
 
 
 def generate_case_report(case_id: int, user_id: int) -> dict:

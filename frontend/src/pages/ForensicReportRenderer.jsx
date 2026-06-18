@@ -1,6 +1,9 @@
-//ForensicReportRenderer.jsx
+// ForensicReportRenderer.jsx
 import React, { useMemo } from "react";
 import "./ForensicReportRenderer.css";
+import html2canvas from "html2canvas-pro";
+import jsPDF from "jspdf";
+
 
 // ─── Parser ──────────────────────────────────────────────────────────────────
 
@@ -14,8 +17,6 @@ function parseReport(rawText) {
     { label: "AI DETECTION ANALYSIS",     key: "detection" },
     { label: "SCENE INTERPRETATION",      key: "scene" },
     { label: "WITNESS TESTIMONY SUMMARY", key: "witness" },
-    { label: "3D RECONSTRUCTION STATUS",  key: "reconstruction" },
-    { label: "INVESTIGATOR NOTES",        key: "notes" },
     { label: "AI-ASSISTED CONCLUSIONS",   key: "conclusions" },
   ];
 
@@ -26,6 +27,8 @@ function parseReport(rawText) {
   const flush = () => {
     if (currentKey) sections[currentKey] = buffer.join("\n").trim();
   };
+
+  // ✅ REMOVED: downloadPDF, downloadTXT, printReport were incorrectly here
 
   for (const line of rawText.split("\n")) {
     const trimmed = line.trim();
@@ -61,21 +64,17 @@ function parseCaseDetails(text) {
   return rows;
 }
 
-// Known detectable object classes (matches the ONNX model classes)
 const KNOWN_CLASSES = [
   "Blood", "Finger-print", "Fingerprint", "Glass", "Hammer",
   "Handgun", "Person", "Knife", "Shotgun", "Weapon", "Bullet",
   "Shell", "Casing", "Body", "Victim"
 ];
 
-// Extract object+confidence pairs from ANY text using regex
-// Handles patterns like: "Knife" (77.7%), "Blood" with 67.0% confidence, Blood: 67.0%
 function extractDetectionsFromText(text) {
   if (!text) return [];
   const found = [];
   const seen = new Set();
 
-  // Pattern 1: "ObjectName" (XX.X%) or "ObjectName" with XX.X% confidence
   const p1 = /"([^"]+)"\s*(?:with\s+)?(?:a\s+)?(?:confidence\s+(?:level\s+)?(?:of\s+)?)?(?:\()?([0-9]+(?:\.[0-9]+)?)%/gi;
   let m;
   while ((m = p1.exec(text)) !== null) {
@@ -88,7 +87,6 @@ function extractDetectionsFromText(text) {
     }
   }
 
-  // Pattern 2: ObjectName (XX.X% confidence) — unquoted known class names
   for (const cls of KNOWN_CLASSES) {
     const re = new RegExp(`\\b${cls}\\b[^.]*?([0-9]+(?:\\.[0-9]+)?)%`, "gi");
     while ((m = re.exec(text)) !== null) {
@@ -129,7 +127,6 @@ function parseDetectionBlocks(text) {
         cur.detections = extractDetectionsFromText(cur.interpretation);
       }
 
-      // ✅ Check if a block with same filename already exists — merge into it
       const existing = blocks.find(b => b.file === cur.file);
       if (existing) {
         existing.detections.push(...cur.detections);
@@ -159,11 +156,9 @@ function parseDetectionBlocks(text) {
     if (evMatch) {
       flush();
       const filename = evMatch[1].trim();
-      // ✅ Reuse existing block if same filename, don't create duplicate
       const existing = blocks.find(b => b.file === filename);
       if (existing) {
         cur = existing;
-        // Remove from blocks temporarily so flush can re-merge
         blocks.splice(blocks.indexOf(existing), 1);
       } else {
         cur = { file: filename, model: "", detections: [], interpretation: "", _p: null };
@@ -190,15 +185,13 @@ function parseDetectionBlocks(text) {
 
   return blocks;
 }
+
 function parseWitnesses(text) {
   if (!text) return [];
   
   const clean = text.replace(/\*\*/g, "").replace(/\*/g, "");
   
-  if (
-    clean.trim().length < 80 &&
-    /no witness/i.test(clean)
-  ) return [];
+  if (clean.trim().length < 80 && /no witness/i.test(clean)) return [];
 
   const witnesses = [];
   const lines = clean.split("\n").map(l => l.trim()).filter(Boolean);
@@ -227,12 +220,10 @@ function parseWitnesses(text) {
     } else if (contactMatch && cur) {
       cur.contact = contactMatch[1].trim();
     } else if (dateMatch && cur) {
-      // Strip ugly time part: "2026-04-09 00:00:00" → "2026-04-09"
       cur.date = dateMatch[1].trim().replace(/\s+\d{2}:\d{2}:\d{2}$/, "");
     } else if (summaryMatch && cur) {
       summaryLines = [summaryMatch[1].trim()];
     } else if (cur && summaryLines.length > 0 && line.length > 10) {
-      // Continuation of summary on next lines
       summaryLines.push(line);
     }
   }
@@ -240,6 +231,7 @@ function parseWitnesses(text) {
 
   return witnesses;
 }
+
 function parseConclusions(text) {
   if (!text) return { summary: "", steps: [], disclaimer: "" };
   const steps = [];
@@ -450,10 +442,55 @@ function DetectionBlock({ block }) {
 
 export default function ForensicReportRenderer({ reportText }) {
   const sections = useMemo(() => parseReport(reportText), [reportText]);
+
+  // ✅ FIXED: Action handlers now live inside the component, with access to reportText
+  const downloadPDF = () => {
+    const doc = new jsPDF();
+    const lines = doc.splitTextToSize(reportText, 180);
+    doc.setFont("times", "normal");
+    doc.setFontSize(11);
+    let y = 15;
+    lines.forEach((line) => {
+      if (y > 280) {
+        doc.addPage();
+        y = 15;
+      }
+      doc.text(line, 15, y);
+      y += 6;
+    });
+    doc.save("Forensic_Report.pdf");
+  };
+
+  const printReport = () => {
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Forensic Report</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 20px;
+              white-space: pre-wrap;
+            }
+          </style>
+        </head>
+        <body>
+          ${reportText.replace(/\n/g, "<br/>")}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  };
+
   if (!sections) return null;
 
-  const caseRows   = useMemo(() => parseCaseDetails(sections.caseDetails), [sections.caseDetails]);
-  const detBlocks  = useMemo(() => {
+  const caseRows    = useMemo(() => parseCaseDetails(sections.caseDetails), [sections.caseDetails]);
+  const detBlocks   = useMemo(() => {
     const blocks = parseDetectionBlocks(sections.detection);
     if (blocks.length === 0 && sections.detection) {
       const mined = extractDetectionsFromText(sections.detection);
@@ -463,170 +500,151 @@ export default function ForensicReportRenderer({ reportText }) {
     }
     return blocks;
   }, [sections.detection]);
-  const witnesses  = useMemo(() => parseWitnesses(sections.witness), [sections.witness]);
+  const witnesses   = useMemo(() => parseWitnesses(sections.witness), [sections.witness]);
   const conclusions = useMemo(() => parseConclusions(sections.conclusions), [sections.conclusions]);
   const evidenceParsed = useMemo(() => parseEvidenceList(sections.evidence || ""), [sections.evidence]);
 
   const totalObjects = detBlocks.reduce((a, b) => a + b.detections.length, 0);
 
   return (
-    <div className="frr-root">
+    <>
+      {/* ✅ Only PDF download + Print — TXT removed */}
+      <div className="frr-root">
 
-      {/* ── 1. Executive Summary ── */}
-      {sections.executive && (
-        <SectionCard icon="📋" title="Executive Summary" accent="blue" num="1">
-          <p className="frr-prose">{sections.executive}</p>
-        </SectionCard>
-      )}
+        {/* ── 1. Executive Summary ── */}
+        {sections.executive && (
+          <SectionCard icon="📋" title="Executive Summary" accent="blue" num="1">
+            <p className="frr-prose">{sections.executive}</p>
+          </SectionCard>
+        )}
 
-      {/* ── 2. Case Details ── */}
-      {caseRows.length > 0 && (
-        <SectionCard icon="🗂️" title="Case Details" accent="indigo" num="2">
-          <KpiGrid rows={caseRows} />
-          <CaseTable rows={caseRows} />
-        </SectionCard>
-      )}
+        {/* ── 2. Case Details ── */}
+        {caseRows.length > 0 && (
+          <SectionCard icon="🗂️" title="Case Details" accent="indigo" num="2">
+            <KpiGrid rows={caseRows} />
+            <CaseTable rows={caseRows} />
+          </SectionCard>
+        )}
 
-      {/* ── 3. Evidence Inventory ── */}
-      {sections.evidence && (
+        {/* ── 3. Evidence Inventory ── */}
+        {sections.evidence && (
+          <SectionCard
+            icon="🗃️"
+            title="Evidence Inventory"
+            badge={evidenceParsed.files.length > 0 ? `${evidenceParsed.files.length} file${evidenceParsed.files.length > 1 ? "s" : ""}` : null}
+            accent="purple"
+            num="3"
+          >
+            {evidenceParsed.files.length > 0 ? (
+              <div className="frr-ev-list">
+                {evidenceParsed.files.map((f, i) => {
+                  const ext = (f.match(/\.(\w+)$/) || [])[1]?.toUpperCase() || "FILE";
+                  return (
+                    <div key={i} className="frr-ev-item">
+                      <span className="frr-ev-num">{i + 1}</span>
+                      <FileIcon filename={f} />
+                      <span className="frr-ev-name">{f}</span>
+                      <span className="frr-ev-ext">{ext}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="frr-prose">{sections.evidence}</p>
+            )}
+            {evidenceParsed.descriptions.map((d, i) => (
+              <p key={i} className="frr-prose frr-prose-sm">{d}</p>
+            ))}
+          </SectionCard>
+        )}
+
+        {/* ── 4. AI Detection Analysis ── */}
+        {detBlocks.length > 0 && (
+          <SectionCard
+            icon="🔍"
+            title="AI Detection Analysis"
+            badge={totalObjects > 0 ? `${totalObjects} object${totalObjects > 1 ? "s" : ""} found` : "No objects"}
+            accent="green"
+            num="4"
+          >
+            <div className="frr-det-blocks">
+              {detBlocks.map((block, i) => (
+                <DetectionBlock key={i} block={block} />
+              ))}
+            </div>
+          </SectionCard>
+        )}
+
+        {/* ── 5. Scene Interpretation ── */}
+        {sections.scene && (
+          <SectionCard icon="🏚️" title="Scene Interpretation" accent="amber" num="5">
+            <p className="frr-prose">{sections.scene}</p>
+          </SectionCard>
+        )}
+
+        {/* ── 6. Witness Testimony ── */}
         <SectionCard
-          icon="🗃️"
-          title="Evidence Inventory"
-          badge={evidenceParsed.files.length > 0 ? `${evidenceParsed.files.length} file${evidenceParsed.files.length > 1 ? "s" : ""}` : null}
-          accent="purple"
-          num="3"
+          icon="👥"
+          title="Witness Testimony Summary"
+          badge={witnesses.length > 0 ? `${witnesses.length} witness${witnesses.length > 1 ? "es" : ""}` : null}
+          accent="teal"
+          num="6"
         >
-          {evidenceParsed.files.length > 0 ? (
-            <div className="frr-ev-list">
-              {evidenceParsed.files.map((f, i) => {
-                const ext = (f.match(/\.(\w+)$/) || [])[1]?.toUpperCase() || "FILE";
-                return (
-                  <div key={i} className="frr-ev-item">
-                    <span className="frr-ev-num">{i + 1}</span>
-                    <FileIcon filename={f} />
-                    <span className="frr-ev-name">{f}</span>
-                    <span className="frr-ev-ext">{ext}</span>
-                  </div>
-                );
-              })}
+          {witnesses.length === 0 ? (
+            <div className="frr-empty-state">
+              <span className="frr-empty-icon">📭</span>
+              <p>No witness statements were recorded for this case.</p>
             </div>
           ) : (
-            <p className="frr-prose">{sections.evidence}</p>
-          )}
-          {evidenceParsed.descriptions.map((d, i) => (
-            <p key={i} className="frr-prose frr-prose-sm">{d}</p>
-          ))}
-        </SectionCard>
-      )}
-
-      {/* ── 4. AI Detection Analysis ── */}
-      {detBlocks.length > 0 && (
-        <SectionCard
-          icon="🔍"
-          title="AI Detection Analysis"
-          badge={totalObjects > 0 ? `${totalObjects} object${totalObjects > 1 ? "s" : ""} found` : "No objects"}
-          accent="green"
-          num="4"
-        >
-          <div className="frr-det-blocks">
-            {detBlocks.map((block, i) => (
-              <DetectionBlock key={i} block={block} />
-            ))}
-          </div>
-        </SectionCard>
-      )}
-
-      {/* ── 5. Scene Interpretation ── */}
-      {sections.scene && (
-        <SectionCard icon="🏚️" title="Scene Interpretation" accent="amber" num="5">
-          <p className="frr-prose">{sections.scene}</p>
-        </SectionCard>
-      )}
-
-      {/* ── 6. Witness Testimony ── */}
-      <SectionCard
-        icon="👥"
-        title="Witness Testimony Summary"
-        badge={witnesses.length > 0 ? `${witnesses.length} witness${witnesses.length > 1 ? "es" : ""}` : null}
-        accent="teal"
-        num="6"
-      >
-        {witnesses.length === 0 ? (
-          <div className="frr-empty-state">
-            <span className="frr-empty-icon">📭</span>
-            <p>No witness statements were recorded for this case.</p>
-          </div>
-        ) : (
-          <div className="frr-witnesses">
-            {witnesses.map((w, i) => (
-              <div key={i} className="frr-witness-card">
-                <div className="frr-witness-top">
-                  <span className="frr-witness-name">👤 {w.name}</span>
-                  {w.date && w.date !== "Not specified" && (
-                    <span className="frr-witness-date">📅 {w.date}</span>
+            <div className="frr-witnesses">
+              {witnesses.map((w, i) => (
+                <div key={i} className="frr-witness-card">
+                  <div className="frr-witness-top">
+                    <span className="frr-witness-name">👤 {w.name}</span>
+                    {w.date && w.date !== "Not specified" && (
+                      <span className="frr-witness-date">📅 {w.date}</span>
+                    )}
+                  </div>
+                  {w.contact && w.contact !== "Not specified" && (
+                    <div className="frr-witness-contact">📞 {w.contact}</div>
                   )}
+                  {w.statement && <p className="frr-witness-stmt">"{w.statement}"</p>}
                 </div>
-                {w.contact && w.contact !== "Not specified" && (
-                  <div className="frr-witness-contact">📞 {w.contact}</div>
-                )}
-                {w.statement && <p className="frr-witness-stmt">"{w.statement}"</p>}
-              </div>
-            ))}
-          </div>
-        )}
-      </SectionCard>
-
-      {/* ── 7. 3D Reconstruction ── */}
-      {sections.reconstruction && (
-        <SectionCard icon="📐" title="3D Reconstruction Status" accent="pink" num="7">
-          <div className="frr-recon-box">
-            <span className="frr-recon-badge">PENDING</span>
-            <p className="frr-prose">{sections.reconstruction}</p>
-          </div>
-        </SectionCard>
-      )}
-
-      {/* ── 8. Investigator Notes ── */}
-      <SectionCard icon="📝" title="Investigator Notes" accent="gray" num="8">
-        <div className="frr-notes-box">
-          <p className="frr-notes-hint">
-            ✏️ Reserved for manual notes and observations by the lead forensic investigator.
-          </p>
-          <div className="frr-notes-lines">
-            {[...Array(5)].map((_, i) => <div key={i} className="frr-notes-line" />)}
-          </div>
-        </div>
-      </SectionCard>
-
-      {/* ── 9. AI-Assisted Conclusions ── */}
-      {(conclusions.summary || conclusions.steps.length > 0) && (
-        <SectionCard icon="🤖" title="AI-Assisted Conclusions" accent="red" num="9">
-          {conclusions.summary && (
-            <p className="frr-prose" style={{ marginBottom: conclusions.steps.length ? 20 : 0 }}>
-              {conclusions.summary}
-            </p>
-          )}
-          {conclusions.steps.length > 0 && (
-            <>
-              <div className="frr-steps-heading">📌 Suggested Next Investigative Steps</div>
-              <ol className="frr-steps">
-                {conclusions.steps.map((step, i) => (
-                  <li key={i} className="frr-step">
-                    <span className="frr-step-num">{i + 1}</span>
-                    <span className="frr-step-text">{step}</span>
-                  </li>
-                ))}
-              </ol>
-            </>
-          )}
-          {conclusions.disclaimer && (
-            <div className="frr-disclaimer">
-              <span className="frr-disclaimer-icon">⚠️</span>
-              <p>{conclusions.disclaimer}</p>
+              ))}
             </div>
           )}
         </SectionCard>
-      )}
-    </div>
+
+        {/* ── 9. AI-Assisted Conclusions ── */}
+        {(conclusions.summary || conclusions.steps.length > 0) && (
+          <SectionCard icon="🤖" title="AI-Assisted Conclusions" accent="red" num="9">
+            {conclusions.summary && (
+              <p className="frr-prose" style={{ marginBottom: conclusions.steps.length ? 20 : 0 }}>
+                {conclusions.summary}
+              </p>
+            )}
+            {conclusions.steps.length > 0 && (
+              <>
+                <div className="frr-steps-heading">📌 Suggested Next Investigative Steps</div>
+                <ol className="frr-steps">
+                  {conclusions.steps.map((step, i) => (
+                    <li key={i} className="frr-step">
+                      <span className="frr-step-num">{i + 1}</span>
+                      <span className="frr-step-text">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )}
+            {conclusions.disclaimer && (
+              <div className="frr-disclaimer">
+                <span className="frr-disclaimer-icon">⚠️</span>
+                <p>{conclusions.disclaimer}</p>
+              </div>
+            )}
+          </SectionCard>
+        )}
+      </div>
+    </>
   );
 }

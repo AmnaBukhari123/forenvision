@@ -2,4 +2,9 @@
   "devDependencies": {
     "baseline-browser-mapping": "^2.8.32"
   },
+  "dependencies": {
+    "html2canvas-pro": "^2.0.4",
+    "jspdf": "^4.2.1",
+    "recharts": "^3.8.1"
+  }
 }

@@ -9,7 +9,9 @@ import {
   Briefcase,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  FileText,
+  ExternalLink
 } from "lucide-react";
 import { 
   getPendingInvestigators, 
@@ -17,6 +19,42 @@ import {
   getInvestigatorApprovalHistory 
 } from "../services/api";
 import "./PendingInvestigators.css";
+
+// ── CERTIFICATION URL HELPER ────────────────────────────────────────────────
+// The pending-investigators API is expected to return a `certification_url`
+// (or `certification_path`) field per investigator pointing to the uploaded
+// file. This normalizes either shape into an absolute-or-relative URL the
+// browser can open. Adjust API_BASE_URL / the field name here if your
+// backend uses a different convention (e.g. signed S3 URLs, a different
+// field name, or a dedicated `/investigator/:id/certification` endpoint).
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+const getCertificationUrl = (investigator) => {
+  const raw =
+    investigator.certification_url ||
+    investigator.certification_file_url ||
+    investigator.certification_path ||
+    investigator.certification;
+
+  if (!raw) return null;
+
+  if (raw.startsWith("http")) {
+    return raw;
+  }
+
+  return `http://localhost:8000/${raw.replace(/^\/+/, "")}`;
+};
+
+const getCertificationFileName = (url) => {
+  if (!url) return "";
+  try {
+    const clean = url.split("?")[0];
+    return clean.substring(clean.lastIndexOf("/") + 1);
+  } catch {
+    return "";
+  }
+};
+
+const isImageFile = (url) => /\.(png|jpe?g|gif|webp)$/i.test(url || "");
 
 export default function PendingInvestigators() {
   const [pendingInvestigators, setPendingInvestigators] = useState([]);
@@ -29,6 +67,9 @@ export default function PendingInvestigators() {
   const [message, setMessage] = useState({ type: "", text: "" });
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [approvingInvestigator, setApprovingInvestigator] = useState(null);
+  // ✅ New: state for the certification document viewer modal
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [viewingInvestigator, setViewingInvestigator] = useState(null);
 
   useEffect(() => {
     loadPendingInvestigators();
@@ -135,6 +176,17 @@ export default function PendingInvestigators() {
     }
   };
 
+  // ✅ New: open the certification document viewer modal
+  const handleViewDocument = (investigator) => {
+    setViewingInvestigator(investigator);
+    setShowDocumentModal(true);
+  };
+
+  const closeDocumentModal = () => {
+    setShowDocumentModal(false);
+    setViewingInvestigator(null);
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -216,90 +268,107 @@ export default function PendingInvestigators() {
           </div>
 
           <div className="pending-investigators-grid">
-            {pendingInvestigators.map((investigator) => (
-              <div key={investigator.id} className="investigator-card pending">
-                <div className="investigator-card-header">
-                  <div className="investigator-avatar">
-                    <Briefcase size={24} />
-                  </div>
-                  <div className="investigator-info">
-                    <h3>{investigator.name}</h3>
-                    <div className="investigator-meta">
-                      <span className="email">
-                        <Mail size={14} />
-                        {investigator.email}
-                      </span>
-                      {investigator.contact_number && (
-                        <span className="phone">
-                          <Phone size={14} />
-                          {investigator.contact_number}
+            {pendingInvestigators.map((investigator) => {
+              const certUrl = getCertificationUrl(investigator);
+              return (
+                <div key={investigator.id} className="investigator-card pending">
+                  <div className="investigator-card-header">
+                    <div className="investigator-avatar">
+                      <Briefcase size={24} />
+                    </div>
+                    <div className="investigator-info">
+                      <h3>{investigator.name}</h3>
+                      <div className="investigator-meta">
+                        <span className="email">
+                          <Mail size={14} />
+                          {investigator.email}
                         </span>
-                      )}
+                        {investigator.contact_number && (
+                          <span className="phone">
+                            <Phone size={14} />
+                            {investigator.contact_number}
+                          </span>
+                        )}
+                      </div>
                     </div>
+                    <span className="pending-badge">
+                      <Clock size={14} />
+                      Pending
+                    </span>
                   </div>
-                  <span className="pending-badge">
-                    <Clock size={14} />
-                    Pending
-                  </span>
-                </div>
 
-                <div className="investigator-details">
-                  {investigator.specialization && (
-                    <div className="detail-item">
-                      <strong>Specialization:</strong>
-                      <span>{investigator.specialization}</span>
-                    </div>
-                  )}
-                  {investigator.years_of_experience && (
-                    <div className="detail-item">
-                      <strong>Experience:</strong>
-                      <span>{investigator.years_of_experience} years</span>
-                    </div>
-                  )}
-                  {investigator.certification && (
-                    <div className="detail-item">
-                      <strong>Certification:</strong>
-                      <span>{investigator.certification}</span>
-                    </div>
-                  )}
-                  {investigator.department && (
-                    <div className="detail-item">
-                      <strong>Department:</strong>
-                      <span>{investigator.department}</span>
-                    </div>
-                  )}
-                  <div className="detail-item">
-                    <strong>Registered:</strong>
-                    <span>{formatDate(investigator.created_at)}</span>
-                  </div>
-                </div>
-
-                <div className="investigator-actions">
-                  <button
-                    className="btn-approve"
-                    onClick={() => handleApprove(investigator)}
-                    disabled={processingId === investigator.id}
-                  >
-                    {processingId === investigator.id ? (
-                      "Processing..."
-                    ) : (
-                      <>
-                        <CheckCircle size={18} />
-                        Approve
-                      </>
+                  <div className="investigator-details">
+                    {investigator.specialization && (
+                      <div className="detail-item">
+                        <strong>Specialization:</strong>
+                        <span>{investigator.specialization}</span>
+                      </div>
                     )}
-                  </button>
-                  <button
-                    className="btn-reject"
-                    onClick={() => handleReject(investigator)}
-                    disabled={processingId === investigator.id}
-                  >
-                    <XCircle size={18} />
-                    Reject
-                  </button>
+                    {investigator.years_of_experience && (
+                      <div className="detail-item">
+                        <strong>Experience:</strong>
+                        <span>{investigator.years_of_experience} years</span>
+                      </div>
+                    )}
+                    {investigator.certification && (
+                      <div className="detail-item">
+  <strong>Certification:</strong>
+
+  {certUrl ? (
+    <button
+      type="button"
+      className="btn-view-document"
+      onClick={() => handleViewDocument(investigator)}
+    >
+      <FileText size={14} />
+      View Document
+    </button>
+  ) : (
+    <span>Not provided</span>
+  )}
+</div>
+                    )}
+                    {investigator.department && (
+                      <div className="detail-item">
+                        <strong>Department:</strong>
+                        <span>{investigator.department}</span>
+                      </div>
+                    )}
+                    <div className="detail-item">
+                      <strong>Registered:</strong>
+                      <span>{formatDate(investigator.created_at)}</span>
+                    </div>
+                    {/* ✅ New: certification document row with a view action */}
+                    
+                  </div>
+
+                  <div className="investigator-actions">
+                    <button
+                      className="btn-approve"
+                      onClick={() => handleApprove(investigator)}
+                      disabled={processingId === investigator.id}
+                    >
+                      {processingId === investigator.id ? (
+                        "Processing..."
+                      ) : (
+                        <>
+                          <CheckCircle size={18} />
+                          Approve
+                        </>
+                      )}
+                    </button>
+                    <button
+                      className="btn-reject"
+                      onClick={() => handleReject(investigator)}
+                      disabled={processingId === investigator.id}
+                    >
+                      <XCircle size={18} />
+                      Reject
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
@@ -395,6 +464,65 @@ export default function PendingInvestigators() {
                   Confirm Approve
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ New: Certification Document Viewer Modal */}
+      {showDocumentModal && viewingInvestigator && (
+        <div className="modal-overlay" onClick={closeDocumentModal}>
+          <div
+            className="rejection-modal document-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3>
+                Certification {viewingInvestigator.name}
+              </h3>
+              <button className="close-modal" onClick={closeDocumentModal}>
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              {(() => {
+                const certUrl = getCertificationUrl(viewingInvestigator);
+                if (!certUrl) {
+                  return <p>No certification document was found for this investigator.</p>;
+                }
+                const fileName = getCertificationFileName(certUrl);
+                return (
+                  <>
+                    <div className="document-preview">
+                      {isImageFile(certUrl) ? (
+                        <img
+                          src={certUrl}
+                          alt={`${viewingInvestigator.name} certification`}
+                          className="document-preview-image"
+                        />
+                      ) : (
+                        <iframe
+                          src={certUrl}
+                          title="Certification document"
+                          className="document-preview-frame"
+                        />
+                      )}
+                    </div>
+                    <div className="modal-actions">
+                      <span className="document-file-name">{fileName}</span>
+                      <a
+                        href={certUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-confirm-reject btn-open-new-tab"
+                      >
+                        <ExternalLink size={16} />
+                        Open in New Tab
+                      </a>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>

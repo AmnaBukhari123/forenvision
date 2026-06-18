@@ -1,9 +1,9 @@
 //AdminInvestigators.jsx
 import React, { useState, useEffect } from "react";
-import { 
-  UserCheck, 
-  Briefcase, 
-  Award, 
+import {
+  UserCheck,
+  Briefcase,
+  Award,
   Calendar,
   FolderOpen,
   CheckCircle,
@@ -12,7 +12,8 @@ import {
   Search,
   Filter,
   Edit,
-  Eye
+  Eye,
+  Trash2
 } from "lucide-react";
 import { 
   getInvestigators, 
@@ -32,6 +33,8 @@ export default function AdminInvestigators() {
   const [filterAvailable, setFilterAvailable] = useState("all");
   const [isFormDirty, setIsFormDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [investigatorToDelete, setInvestigatorToDelete] = useState(null);
 
   const [editData, setEditData] = useState({
     specialization: "",
@@ -157,6 +160,49 @@ export default function AdminInvestigators() {
     }
   };
 
+const handleDeleteInvestigator = async (investigatorId, investigatorName) => {
+  try {
+    const token = localStorage.getItem("token");
+
+    const response = await fetch(
+      `http://localhost:8000/api/v1/admin/investigators/${investigatorId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (response.ok) {
+      setInvestigators((prev) =>
+        prev.filter((inv) => inv.id !== investigatorId)
+      );
+
+      setShowDeleteModal(false);
+      setInvestigatorToDelete(null);
+
+      setMessage({
+        type: "success",
+        text: `${investigatorName} deleted successfully`,
+      });
+    } else {
+      setShowDeleteModal(false);
+
+      setMessage({
+        type: "error",
+        text: data.detail,
+      });
+    }
+  } catch (error) {
+    setMessage({
+      type: "error",
+      text: error.message,
+    });
+  }
+};
   const getWorkloadStatus = (activeCases) => {
     if (activeCases === 0) return { label: "Free", color: "free" };
     if (activeCases <= 3) return { label: "Light", color: "light" };
@@ -301,6 +347,23 @@ export default function AdminInvestigators() {
                           >
                             <Edit size={16} />
                           </button>
+                          <button
+  className="btn-icon delete"
+  onClick={() => {
+    if (investigator.total_cases > 0) {
+      setMessage({
+        type: "error",
+        text: `Cannot delete investigator because ${investigator.total_cases} case(s) are assigned. Please reassign the cases or mark the investigator unavailable.`
+      });
+      return;
+    }
+
+    setInvestigatorToDelete(investigator);
+    setShowDeleteModal(true);
+  }}
+>
+  <Trash2 size={16} />
+</button>
                           <button
                             className="btn-icon toggle"
                             onClick={() => toggleInvestigatorCases(investigator.id)}
@@ -486,6 +549,49 @@ export default function AdminInvestigators() {
           </div>
         </div>
       )}
+
+      {showDeleteModal && investigatorToDelete && (
+  <div
+    className="modal-overlay"
+    onClick={() => setShowDeleteModal(false)}
+  >
+    <div
+      className="modal-content delete-modal"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h3>Delete Investigator</h3>
+
+      <p>
+        Are you sure you want to delete
+        <strong> {investigatorToDelete.name}</strong>?
+      </p>
+
+      <p>This action cannot be undone.</p>
+
+      <div className="modal-actions">
+        <button
+          className="btn-action delete"
+          onClick={() =>
+            handleDeleteInvestigator(
+              investigatorToDelete.id,
+              investigatorToDelete.name
+            )
+          }
+        >
+          Delete
+        </button>
+
+        <button
+          className="btn-action cancel"
+          onClick={() => setShowDeleteModal(false)}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
+

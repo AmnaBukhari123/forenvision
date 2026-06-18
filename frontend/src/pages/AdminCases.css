@@ -399,3 +399,40 @@
     min-width: 150px;
   }
 }
+
+.date-filter-group input[type="date"] {
+  height: 48px;
+  min-width: 150px;
+  background: #12213d;
+  border: 1px solid #28456f;
+  border-radius: 12px;
+  color: #e5e7eb;
+  padding: 0 16px;
+}
+.date-filter-group input[type="date"]:hover {
+  border-color: #3b82f6;
+}
+
+.date-filter-group input[type="date"]:focus {
+  border-color: #4f8cff;
+  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.15);
+}
+
+/* Calendar icon */
+.date-filter-group input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
+.date-filter-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+input[type="date"] {
+  background: #12213d !important;
+  color: #fff !important;
+  border: 1px solid #28456f;
+  border-radius: 10px;
+  padding: 0 12px;
+  height: 48px;
+}

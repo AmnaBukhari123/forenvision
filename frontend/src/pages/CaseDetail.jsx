@@ -20,6 +20,9 @@ import {
 } from "../services/api";
 import "./CaseDetail.css";
 import ForensicReportRenderer from "./ForensicReportRenderer";
+import html2canvas from "html2canvas-pro";
+import jsPDF from "jspdf";
+
 
 const validatePakistaniPhone = (phone) => {
   if (!phone || phone.trim() === "") return true;
@@ -87,6 +90,78 @@ export default function CaseDetail() {
   const [hasChanges, setHasChanges] = useState(false);
   const [originalForm, setOriginalForm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+
+// Replace handleDownloadReport and add a ref:
+const reportRendererRef = useRef(null);
+
+const handleDownloadPDF = async () => {
+  const element = reportRendererRef.current;
+  if (!element) return;
+
+  const wasFullscreen = reportFullscreen;
+  if (!wasFullscreen) {
+    setReportFullscreen(true);
+    await new Promise((r) => setTimeout(r, 350)); // let layout reflow to full width
+  }
+
+  try {
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#0f1117",
+      width: element.scrollWidth,
+      windowWidth: element.scrollWidth, // capture at its actual full-width size
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+    // Landscape fits a wide grid-style report much better than portrait
+    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * pageWidth) / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    pdf.save(`Forensic_Report_${reportData.case_name}.pdf`);
+  } catch (err) {
+    console.error("PDF generation failed:", err);
+    alert("PDF generation failed: " + err.message);
+  } finally {
+    if (!wasFullscreen) setReportFullscreen(false); // restore original modal state
+  }
+};
+const handlePrintReport = () => {
+  const element = reportRendererRef.current;
+  if (!element) return;
+  const printWindow = window.open("", "_blank");
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>Forensic Report - ${reportData.case_name}</title>
+        <style>
+          body { margin: 0; padding: 0; background: #0f1117; color: #f1f1f1; }
+        </style>
+      </head>
+      <body>${element.innerHTML}</body>
+    </html>
+  `);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => printWindow.print(), 800);
+};
 
   const load = async () => {
     try {
@@ -475,8 +550,9 @@ export default function CaseDetail() {
 
   if (!data) return <div className="loading">Loading case details...</div>;
 
-  const { case: caseData, evidence } = data;
-  const imageEvidence = getImageEvidence();
+const { case: caseData, evidence } = data;
+const isClosed = caseData.status?.toLowerCase() === "closed";
+const imageEvidence = getImageEvidence();
 
   return (
     <div className="case-detail-container">
@@ -488,12 +564,14 @@ export default function CaseDetail() {
               <div className="case-title-row">
                 <h1 className="case-title">{caseData.name}</h1>
                 <div className="case-header-actions">
-                  <button
-                    className="edit-case-btn"
-                    onClick={() => setIsEditing(true)}
-                  >
-                    Edit Case
-                  </button>
+                  {!isClosed && (
+  <button
+    className="edit-case-btn"
+    onClick={() => setIsEditing(true)}
+  >
+    Edit Case
+  </button>
+)}
                 </div>
               </div>
               <div className="case-meta">
@@ -687,12 +765,14 @@ export default function CaseDetail() {
             <span className="evidence-count">
               {witnessStatements.length} statements
             </span>
-            <button
-              className="add-witness-btn"
-              onClick={() => setShowWitnessForm(!showWitnessForm)}
-            >
-              {showWitnessForm ? "Cancel" : "+ Add Statement"}
-            </button>
+            {!isClosed && (
+  <button
+    className="add-witness-btn"
+    onClick={() => setShowWitnessForm(!showWitnessForm)}
+  >
+    {showWitnessForm ? "Cancel" : "+ Add Statement"}
+  </button>
+)}
           </div>
         </div>
 
@@ -769,6 +849,7 @@ export default function CaseDetail() {
           ) : (
             witnessStatements.map((witness) => (
               <div key={witness.id} className="witness-card">
+                {!isClosed && (
                 <button
                   className="delete-witness-btn"
                   onClick={() => handleDeleteWitnessStatement(witness.id)}
@@ -777,6 +858,7 @@ export default function CaseDetail() {
                 >
                   {deletingWitnessId === witness.id ? "⏳" : "×"}
                 </button>
+                )}
                 <div className="witness-header">
                   <h4 className="witness-name">{witness.witness_name}</h4>
                   {witness.statement_date && (
@@ -811,6 +893,7 @@ export default function CaseDetail() {
           <h3>🔬 Analysis Tools</h3>
         </div>
         <div className="analysis-tools-grid">
+          {!isClosed && (
           <div className="analysis-tool-card">
             <div className="tool-icon">🔍</div>
             <h4>Object Detection</h4>
@@ -827,6 +910,7 @@ export default function CaseDetail() {
               {imageEvidence.length !== 1 ? "s" : ""} available
             </small>
           </div>
+          )}
 
           {/* Detection Analytics card */}
           <div className="analysis-tool-card">
@@ -855,11 +939,12 @@ export default function CaseDetail() {
             <h4>3D Reconstruction</h4>
             <p>Create 3D models from evidence</p>
             <button onClick={handle3d} className="tool-btn secondary">
-              Generate 3D
+              {isClosed ? "View 3D" : "Generate 3D"}
             </button>
             <small className="tool-hint">Requires multiple angle images</small>
           </div>
 
+{!isClosed && (
           <div className="analysis-tool-card">
             <div className="tool-icon">📄</div>
             <h4>Forensic Report</h4>
@@ -879,6 +964,7 @@ export default function CaseDetail() {
             </button>
             <small className="tool-hint">Powered by Gemini AI</small>
           </div>
+          )}
         </div>
       </section>
 
@@ -890,6 +976,7 @@ export default function CaseDetail() {
           <h3>Evidence</h3>
           <div className="section-header-actions">
             <span className="evidence-count">{evidence.length} files</span>
+            {!isClosed && (
             <div className="upload-controls">
               <input
                 ref={fileInputRef}
@@ -911,6 +998,7 @@ export default function CaseDetail() {
                 {uploading ? "Uploading..." : "Upload"}
               </button>
             </div>
+            )}
           </div>
         </div>
 
@@ -924,6 +1012,7 @@ export default function CaseDetail() {
             <div className="evidence-grid">
               {evidence.map((ev) => (
                 <div key={ev.id} className="evidence-card">
+                  {!isClosed && (
                   <button
                     className="delete-evidence-btn"
                     onClick={() => handleDeleteEvidence(ev.id, ev.filename)}
@@ -932,6 +1021,7 @@ export default function CaseDetail() {
                   >
                     {deletingEvidenceId === ev.id ? "⏳" : "×"}
                   </button>
+                  )}
                   <div className="evidence-preview">
                     {ev.filename
                       .toLowerCase()
@@ -1030,6 +1120,7 @@ export default function CaseDetail() {
                   >
                     👁 View
                   </button>
+                  {!isClosed && (
                   <button
                     className="delete-witness-btn"
                     onClick={() => handleDeleteSavedReport(report.id)}
@@ -1043,6 +1134,7 @@ export default function CaseDetail() {
                   >
                     {deletingReportId === report.id ? "⏳" : "×"}
                   </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -1245,43 +1337,34 @@ export default function CaseDetail() {
                 <div className="detection-message error">{reportError}</div>
               )}
               {reportData && !generatingReport && (
-                <>
-                  <div className="report-meta">
-                    <span className="report-meta-item">
-                      📁 Case: {reportData.case_name}
-                    </span>
-                    <span className="report-meta-item">
-                      🖼️ Evidence: {reportData.evidence_count}
-                    </span>
-                    <span className="report-meta-item">
-                      🔍 Detections: {reportData.detection_count}
-                    </span>
-                    <span className="report-meta-item">
-                      👥 Witnesses: {reportData.witness_count}
-                    </span>
-                    <span className="report-meta-item">
-                      🕒 {new Date(reportData.generated_at).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="report-actions">
-                    <button
-                      className="btn-save-edit"
-                      onClick={handleCopyReport}
-                    >
-                      📋 Copy Report
-                    </button>
-                    <button
-                      className="btn-run-detection"
-                      onClick={handleDownloadReport}
-                    >
-                      ⬇️ Download .txt
-                    </button>
-                  </div>
-                  <div className="report-renderer-wrap">
-                    <ForensicReportRenderer reportText={reportData.report} />
-                  </div>
-                </>
-              )}
+  <>
+    <div className="report-meta">
+      <span className="report-meta-item">📁 Case: {reportData.case_name}</span>
+      <span className="report-meta-item">🖼️ Evidence: {reportData.evidence_count}</span>
+      <span className="report-meta-item">🔍 Detections: {reportData.detection_count}</span>
+      <span className="report-meta-item">👥 Witnesses: {reportData.witness_count}</span>
+      <span className="report-meta-item">🕒 {new Date(reportData.generated_at).toLocaleString()}</span>
+    </div>
+
+    {/* ✅ 3 buttons, no duplicates */}
+    <div className="report-actions">
+      <button className="btn-save-edit" onClick={handleCopyReport}>
+        📋 Copy Report
+      </button>
+      <button className="btn-run-detection" onClick={handleDownloadPDF}>
+        ⬇️ Download PDF
+      </button>
+      <button className="btn-save-edit" onClick={handlePrintReport}>
+        🖨️ Print Report
+      </button>
+    </div>
+
+    {/* ✅ ref wraps only the renderer, not the buttons */}
+    <div className="report-renderer-wrap" ref={reportRendererRef}>
+      <ForensicReportRenderer reportText={reportData.report} />
+    </div>
+  </>
+)}
             </div>
           </div>
         </div>

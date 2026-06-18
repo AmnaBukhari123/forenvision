@@ -568,7 +568,7 @@ export default function AdminContactRequests() {
 
             <div className="modal-body">
               <div className="form-group">
-                <label>Assign Investigator *</label>
+                <label>Assign Investigator </label>
                 <select
                   value={convertData.investigator_id}
                   onChange={(e) => setConvertData({ ...convertData, investigator_id: e.target.value })}
@@ -576,16 +576,18 @@ export default function AdminContactRequests() {
                   className="form-input"
                 >
                   <option value="">Select Investigator</option>
-                  {investigators.map((inv) => (
-                    <option key={inv.id} value={inv.id}>
-                      {inv.name} - {inv.specialization} ({inv.active_cases} active)
-                    </option>
-                  ))}
+                  {investigators
+  .filter((inv) => inv.is_available)
+  .map((inv) => (
+    <option key={inv.id} value={inv.id}>
+      {inv.name} - {inv.specialization} ({inv.active_cases} active)
+    </option>
+))}
                 </select>
               </div>
 
               <div className="form-group">
-                <label>Case Name *</label>
+                <label>Case Name </label>
                 <input
                   type="text"
                   value={convertData.case_name}
