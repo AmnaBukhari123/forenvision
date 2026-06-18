@@ -394,7 +394,6 @@ const handleDeleteInvestigator = async (investigatorId, investigatorName) => {
                                       <th>Status</th>
                                       <th>Created</th>
                                       <th>Last Updated</th>
-                                      <th>Actions</th>
                                     </tr>
                                   </thead>
                                   <tbody>
@@ -419,11 +418,6 @@ const handleDeleteInvestigator = async (investigatorId, investigatorName) => {
                                         </td>
                                         <td>{new Date(caseItem.created_at).toLocaleDateString()}</td>
                                         <td>{new Date(caseItem.updated_at).toLocaleDateString()}</td>
-                                        <td>
-                                          <button className="btn-icon view" title="View Case">
-                                            <Eye size={16} />
-                                          </button>
-                                        </td>
                                       </tr>
                                     ))}
                                   </tbody>
@@ -594,4 +588,3 @@ const handleDeleteInvestigator = async (investigatorId, investigatorName) => {
     </div>
   );
 }
-
