@@ -344,6 +344,21 @@ export async function login(email, password) {
 }
 
 export async function signup(userData) {
+  // userData is now a FormData instance (built in Signup.jsx so the
+  // certification file can be attached). FormData must be passed to
+  // fetch as-is, with NO Content-Type header — the browser sets the
+  // correct multipart/form-data boundary automatically. Setting
+  // Content-Type manually, or calling JSON.stringify on a FormData
+  // instance, silently sends an empty/garbage body and the backend's
+  // Form(...)/File(...) parser will 422 on every required field.
+  if (userData instanceof FormData) {
+    return fetch(`${BASE}/api/v1/auth/signup`, {
+      method: 'POST',
+      body: userData,
+    });
+  }
+
+  // Fallback for any other caller still passing a plain object
   return fetch(`${BASE}/api/v1/auth/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

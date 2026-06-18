@@ -58,7 +58,10 @@ export default function CaseDetail() {
   const [confidenceThreshold, setConfidenceThreshold] = useState(0.25);
   const [runningDetection, setRunningDetection] = useState(false);
   const [detectionResults, setDetectionResults] = useState([]);
-  const [detectionMessage, setDetectionMessage] = useState({ type: "", text: "" });
+  const [detectionMessage, setDetectionMessage] = useState({
+    type: "",
+    text: "",
+  });
   const [deletingEvidenceId, setDeletingEvidenceId] = useState(null);
   const [availableModels, setAvailableModels] = useState([]);
   const [detectionSuccess, setDetectionSuccess] = useState(false); // ADDED: New state variable
@@ -95,7 +98,9 @@ export default function CaseDetail() {
         const initialForm = {
           name: d.case.name || "",
           description: d.case.description || "",
-          incident_date: d.case.incident_date ? d.case.incident_date.split("T")[0] : "",
+          incident_date: d.case.incident_date
+            ? d.case.incident_date.split("T")[0]
+            : "",
           category: d.case.category || "",
           priority: d.case.priority || "",
           client: d.case.client || "",
@@ -171,7 +176,9 @@ export default function CaseDetail() {
     const updated = { ...editForm, [e.target.name]: e.target.value };
     setEditForm(updated);
     if (originalForm) {
-      const changed = Object.keys(updated).some((key) => updated[key] !== originalForm[key]);
+      const changed = Object.keys(updated).some(
+        (key) => updated[key] !== originalForm[key],
+      );
       setHasChanges(changed);
     }
   };
@@ -182,7 +189,9 @@ export default function CaseDetail() {
     try {
       const payload = {
         ...editForm,
-        incident_date: editForm.incident_date ? `${editForm.incident_date}T00:00:00` : null,
+        incident_date: editForm.incident_date
+          ? `${editForm.incident_date}T00:00:00`
+          : null,
       };
       const response = await updateCase(id, payload);
       if (response.ok) {
@@ -191,7 +200,9 @@ export default function CaseDetail() {
         load();
       } else {
         const errorData = await response.json();
-        setMessage("❌ Failed to update case: " + (errorData.detail || "Unknown error"));
+        setMessage(
+          "❌ Failed to update case: " + (errorData.detail || "Unknown error"),
+        );
       }
     } catch (error) {
       setMessage("❌ Error updating case: " + error.message);
@@ -206,7 +217,10 @@ export default function CaseDetail() {
   };
 
   const handleUpload = async () => {
-    if (!file) { alert("Select a file first!"); return; }
+    if (!file) {
+      alert("Select a file first!");
+      return;
+    }
     setUploading(true);
     try {
       const res = await uploadEvidence(id, file);
@@ -243,7 +257,7 @@ export default function CaseDetail() {
   const getImageEvidence = () => {
     if (!data || !data.evidence) return [];
     return data.evidence.filter((ev) =>
-      ev.filename.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/)
+      ev.filename.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/),
     );
   };
 
@@ -251,32 +265,56 @@ export default function CaseDetail() {
   const handleRunDetection = async (runOnAll = false) => {
     setRunningDetection(true);
     setDetectionMessage({ type: "", text: "" });
-    setDetectionSuccess(false);
+
     try {
-      const options = { modelType: selectedModel, confThreshold: confidenceThreshold };
+      const options = {
+        modelType: selectedModel,
+        confThreshold: confidenceThreshold,
+      };
+
       if (!runOnAll) {
         if (!selectedEvidence) {
-          setDetectionMessage({ type: "error", text: "Please select an evidence file to analyze" });
+          setDetectionMessage({
+            type: "error",
+            text: "Please select an evidence file to analyze",
+          });
           setRunningDetection(false);
           return;
         }
         options.evidenceId = parseInt(selectedEvidence);
       }
+      // When runOnAll = true, evidenceId is simply not set → backend runs on all images
+
       const response = await runObjectDetection(id, options);
       const result = await response.json();
+
       if (response.ok) {
+        setDetectionMessage({
+          type: "success",
+          text: result.message || "Object detection completed successfully",
+        });
         await loadDetectionResults();
-        setDetectionSuccess(true); // show the success/navigate screen
+        setTimeout(() => {
+          setShowDetectionModal(false);
+          setTimeout(() => {
+            if (resultsSectionRef.current) {
+              resultsSectionRef.current.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              });
+            }
+          }, 100);
+        }, 1000);
       } else {
         setDetectionMessage({
           type: "error",
-          text: result.detail || "Detection failed. Please try again.",
+          text: result.detail || "Detection failed.",
         });
       }
     } catch (error) {
       setDetectionMessage({
         type: "error",
-        text: error.message || "Object detection failed. Please try again.",
+        text: error.message || "Detection failed.",
       });
     } finally {
       setRunningDetection(false);
@@ -296,8 +334,13 @@ export default function CaseDetail() {
       setMessage("Please fill in witness name and statement");
       return;
     }
-    if (witnessForm.contact_info && !validatePakistaniPhone(witnessForm.contact_info)) {
-      setMessage("Invalid phone number. Use format: 03XX-XXXXXXX or +923XXXXXXXXX");
+    if (
+      witnessForm.contact_info &&
+      !validatePakistaniPhone(witnessForm.contact_info)
+    ) {
+      setMessage(
+        "Invalid phone number. Use format: 03XX-XXXXXXX or +923XXXXXXXXX",
+      );
       return;
     }
     setAddingWitness(true);
@@ -306,11 +349,19 @@ export default function CaseDetail() {
       if (response.ok) {
         setMessage("Witness statement added successfully");
         setShowWitnessForm(false);
-        setWitnessForm({ witness_name: "", statement: "", contact_info: "", statement_date: "" });
+        setWitnessForm({
+          witness_name: "",
+          statement: "",
+          contact_info: "",
+          statement_date: "",
+        });
         await loadWitnessStatements();
       } else {
         const errorData = await response.json();
-        setMessage("Failed to add witness statement: " + (errorData.detail || "Unknown error"));
+        setMessage(
+          "Failed to add witness statement: " +
+            (errorData.detail || "Unknown error"),
+        );
       }
     } catch (error) {
       setMessage("Error adding witness statement: " + error.message);
@@ -320,7 +371,10 @@ export default function CaseDetail() {
   };
 
   const handleDeleteWitnessStatement = async (witnessId) => {
-    if (!window.confirm("Are you sure you want to delete this witness statement?")) return;
+    if (
+      !window.confirm("Are you sure you want to delete this witness statement?")
+    )
+      return;
     setDeletingWitnessId(witnessId);
     try {
       const response = await deleteWitnessStatement(witnessId);
@@ -329,7 +383,10 @@ export default function CaseDetail() {
         await loadWitnessStatements();
       } else {
         const errorData = await response.json();
-        setMessage("Failed to delete witness statement: " + (errorData.detail || "Unknown error"));
+        setMessage(
+          "Failed to delete witness statement: " +
+            (errorData.detail || "Unknown error"),
+        );
       }
     } catch (error) {
       setMessage("Error deleting witness statement: " + error.message);
@@ -350,10 +407,14 @@ export default function CaseDetail() {
         setReportData(result);
         await loadSavedReports();
       } else {
-        setReportError(result.detail || "Failed to generate report. Please try again.");
+        setReportError(
+          result.detail || "Failed to generate report. Please try again.",
+        );
       }
     } catch (error) {
-      setReportError(error.message || "Report generation failed. Please try again.");
+      setReportError(
+        error.message || "Report generation failed. Please try again.",
+      );
     } finally {
       setGeneratingReport(false);
     }
@@ -387,7 +448,9 @@ export default function CaseDetail() {
         await loadSavedReports();
       } else {
         const err = await response.json();
-        setMessage("Failed to delete report: " + (err.detail || "Unknown error"));
+        setMessage(
+          "Failed to delete report: " + (err.detail || "Unknown error"),
+        );
       }
     } catch (error) {
       setMessage("Error deleting report: " + error.message);
@@ -425,18 +488,25 @@ export default function CaseDetail() {
               <div className="case-title-row">
                 <h1 className="case-title">{caseData.name}</h1>
                 <div className="case-header-actions">
-                  <button className="edit-case-btn" onClick={() => setIsEditing(true)}>
+                  <button
+                    className="edit-case-btn"
+                    onClick={() => setIsEditing(true)}
+                  >
                     Edit Case
                   </button>
                 </div>
               </div>
               <div className="case-meta">
                 <span className="case-id">Case #{caseData.id}</span>
-                <span className={`status-badge large ${caseData.status?.toLowerCase() || "new"}`}>
+                <span
+                  className={`status-badge large ${caseData.status?.toLowerCase() || "new"}`}
+                >
                   {caseData.status || "New"}
                 </span>
                 {caseData.priority && (
-                  <span className={`priority-badge large ${caseData.priority.toLowerCase()}`}>
+                  <span
+                    className={`priority-badge large ${caseData.priority.toLowerCase()}`}
+                  >
                     {caseData.priority} Priority
                   </span>
                 )}
@@ -454,7 +524,11 @@ export default function CaseDetail() {
                 >
                   {updating ? "Saving..." : "Save Changes"}
                 </button>
-                <button className="btn-cancel-edit" onClick={handleCancelEdit} disabled={updating}>
+                <button
+                  className="btn-cancel-edit"
+                  onClick={handleCancelEdit}
+                  disabled={updating}
+                >
                   Cancel
                 </button>
               </div>
@@ -497,12 +571,22 @@ export default function CaseDetail() {
           <div className="edit-form">
             <div className="form-group">
               <label>Case Name *</label>
-              <input type="text" name="name" value={editForm.name} onChange={handleEditChange} required />
+              <input
+                type="text"
+                name="name"
+                value={editForm.name}
+                onChange={handleEditChange}
+                required
+              />
             </div>
             <div className="form-row">
               <div className="form-group">
                 <label>Status</label>
-                <select name="status" value={editForm.status} onChange={handleEditChange}>
+                <select
+                  name="status"
+                  value={editForm.status}
+                  onChange={handleEditChange}
+                >
                   <option value="New">New</option>
                   <option value="Active">Active</option>
                   <option value="Pending">Pending</option>
@@ -512,7 +596,11 @@ export default function CaseDetail() {
               </div>
               <div className="form-group">
                 <label>Priority</label>
-                <select name="priority" value={editForm.priority} onChange={handleEditChange}>
+                <select
+                  name="priority"
+                  value={editForm.priority}
+                  onChange={handleEditChange}
+                >
                   <option value="">Select</option>
                   <option value="Low">Low</option>
                   <option value="Medium">Medium</option>
@@ -522,32 +610,63 @@ export default function CaseDetail() {
               </div>
               <div className="form-group">
                 <label>Category</label>
-                <select name="category" value={editForm.category} onChange={handleEditChange}>
+                <select
+                  name="category"
+                  value={editForm.category}
+                  onChange={handleEditChange}
+                >
                   <option value="">Select</option>
                   <option value="Theft">Theft</option>
                   <option value="Cybercrime">Cybercrime</option>
-                  <option value="Accident Reconstruction">Accident Reconstruction</option>
-                  <option value="General Investigation">General Investigation</option>
+                  <option value="Accident Reconstruction">
+                    Accident Reconstruction
+                  </option>
+                  <option value="General Investigation">
+                    General Investigation
+                  </option>
                 </select>
               </div>
             </div>
             <div className="form-row">
               <div className="form-group">
                 <label>Incident Date</label>
-                <input type="date" name="incident_date" value={editForm.incident_date} onChange={handleEditChange} />
+                <input
+                  type="date"
+                  name="incident_date"
+                  value={editForm.incident_date}
+                  onChange={handleEditChange}
+                />
               </div>
               <div className="form-group">
                 <label>Client/Department</label>
-                <input type="text" name="client" value={editForm.client} onChange={handleEditChange} placeholder="Enter client or department" />
+                <input
+                  type="text"
+                  name="client"
+                  value={editForm.client}
+                  onChange={handleEditChange}
+                  placeholder="Enter client or department"
+                />
               </div>
               <div className="form-group">
                 <label>Investigating Officer</label>
-                <input type="text" name="investigating_officer" value={editForm.investigating_officer} onChange={handleEditChange} placeholder="Enter officer name" />
+                <input
+                  type="text"
+                  name="investigating_officer"
+                  value={editForm.investigating_officer}
+                  onChange={handleEditChange}
+                  placeholder="Enter officer name"
+                />
               </div>
             </div>
             <div className="form-group">
               <label>Description</label>
-              <textarea name="description" value={editForm.description} onChange={handleEditChange} rows="5" placeholder="Enter case description" />
+              <textarea
+                name="description"
+                value={editForm.description}
+                onChange={handleEditChange}
+                rows="5"
+                placeholder="Enter case description"
+              />
             </div>
           </div>
         )}
@@ -565,8 +684,13 @@ export default function CaseDetail() {
         <div className="section-header">
           <h3>👥 Witness Statements</h3>
           <div className="section-header-actions">
-            <span className="evidence-count">{witnessStatements.length} statements</span>
-            <button className="add-witness-btn" onClick={() => setShowWitnessForm(!showWitnessForm)}>
+            <span className="evidence-count">
+              {witnessStatements.length} statements
+            </span>
+            <button
+              className="add-witness-btn"
+              onClick={() => setShowWitnessForm(!showWitnessForm)}
+            >
               {showWitnessForm ? "Cancel" : "+ Add Statement"}
             </button>
           </div>
@@ -577,26 +701,59 @@ export default function CaseDetail() {
             <div className="form-row">
               <div className="form-group">
                 <label>Witness Name *</label>
-                <input type="text" name="witness_name" value={witnessForm.witness_name} onChange={handleWitnessFormChange} placeholder="Enter witness name" required />
+                <input
+                  type="text"
+                  name="witness_name"
+                  value={witnessForm.witness_name}
+                  onChange={handleWitnessFormChange}
+                  placeholder="Enter witness name"
+                  required
+                />
               </div>
               <div className="form-group">
                 <label>Statement Date</label>
-                <input type="date" name="statement_date" value={witnessForm.statement_date} onChange={handleWitnessFormChange} />
+                <input
+                  type="date"
+                  name="statement_date"
+                  value={witnessForm.statement_date}
+                  onChange={handleWitnessFormChange}
+                />
               </div>
             </div>
             <div className="form-group">
               <label>Contact Information</label>
-              <input type="text" name="contact_info" value={witnessForm.contact_info} onChange={handleWitnessFormChange} placeholder="Phone number, email, or address" />
+              <input
+                type="text"
+                name="contact_info"
+                value={witnessForm.contact_info}
+                onChange={handleWitnessFormChange}
+                placeholder="Phone number, email, or address"
+              />
             </div>
             <div className="form-group">
               <label>Statement *</label>
-              <textarea name="statement" value={witnessForm.statement} onChange={handleWitnessFormChange} rows="4" placeholder="Enter witness statement" required />
+              <textarea
+                name="statement"
+                value={witnessForm.statement}
+                onChange={handleWitnessFormChange}
+                rows="4"
+                placeholder="Enter witness statement"
+                required
+              />
             </div>
             <div className="form-actions">
-              <button className="btn-save-edit" onClick={handleAddWitnessStatement} disabled={addingWitness}>
+              <button
+                className="btn-save-edit"
+                onClick={handleAddWitnessStatement}
+                disabled={addingWitness}
+              >
                 {addingWitness ? "Adding..." : "Add Statement"}
               </button>
-              <button className="btn-cancel-edit" onClick={() => setShowWitnessForm(false)} disabled={addingWitness}>
+              <button
+                className="btn-cancel-edit"
+                onClick={() => setShowWitnessForm(false)}
+                disabled={addingWitness}
+              >
                 Cancel
               </button>
             </div>
@@ -666,7 +823,8 @@ export default function CaseDetail() {
               {imageEvidence.length === 0 ? "No Images" : "Run Detection"}
             </button>
             <small className="tool-hint">
-              {imageEvidence.length} image{imageEvidence.length !== 1 ? "s" : ""} available
+              {imageEvidence.length} image
+              {imageEvidence.length !== 1 ? "s" : ""} available
             </small>
           </div>
 
@@ -674,16 +832,21 @@ export default function CaseDetail() {
           <div className="analysis-tool-card">
             <div className="tool-icon">📊</div>
             <h4>Detection Analytics</h4>
-            <p>View detection results, confidence breakdown, and evidence summary</p>
+            <p>
+              View detection results, confidence breakdown, and evidence summary
+            </p>
             <button
               className="tool-btn analytics-btn"
               onClick={() => navigate(`/dashboard/cases/${id}/analytics`)}
               disabled={detectionResults.length === 0}
             >
-              {detectionResults.length === 0 ? "No Results Yet" : `View Analytics`}
+              {detectionResults.length === 0
+                ? "No Results Yet"
+                : `View Analytics`}
             </button>
             <small className="tool-hint">
-              {detectionResults.length} result{detectionResults.length !== 1 ? "s" : ""} available
+              {detectionResults.length} result
+              {detectionResults.length !== 1 ? "s" : ""} available
             </small>
           </div>
 
@@ -701,9 +864,15 @@ export default function CaseDetail() {
             <div className="tool-icon">📄</div>
             <h4>Forensic Report</h4>
             <p>Generate AI-assisted forensic report</p>
-            <button className="tool-btn tertiary" onClick={handleGenerateReport} disabled={generatingReport}>
+            <button
+              className="tool-btn tertiary"
+              onClick={handleGenerateReport}
+              disabled={generatingReport}
+            >
               {generatingReport ? (
-                <><span className="loading-spinner"></span> Generating...</>
+                <>
+                  <span className="loading-spinner"></span> Generating...
+                </>
               ) : (
                 "Generate Report"
               )}
@@ -734,7 +903,11 @@ export default function CaseDetail() {
                 <span className="file-icon">📎</span>
                 {file ? file.name : "Choose File"}
               </label>
-              <button onClick={handleUpload} className="upload-btn" disabled={uploading || !file}>
+              <button
+                onClick={handleUpload}
+                className="upload-btn"
+                disabled={uploading || !file}
+              >
                 {uploading ? "Uploading..." : "Upload"}
               </button>
             </div>
@@ -760,7 +933,9 @@ export default function CaseDetail() {
                     {deletingEvidenceId === ev.id ? "⏳" : "×"}
                   </button>
                   <div className="evidence-preview">
-                    {ev.filename.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/) ? (
+                    {ev.filename
+                      .toLowerCase()
+                      .match(/\.(jpg|jpeg|png|gif|bmp|webp)$/) ? (
                       <img
                         src={`http://127.0.0.1:8000/uploads/${ev.filename}`}
                         alt={ev.filename}
@@ -774,16 +949,20 @@ export default function CaseDetail() {
                     <div
                       className="file-icon"
                       style={{
-                        display: ev.filename.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/) ? "none" : "flex",
+                        display: ev.filename
+                          .toLowerCase()
+                          .match(/\.(jpg|jpeg|png|gif|bmp|webp)$/)
+                          ? "none"
+                          : "flex",
                       }}
                     >
                       {ev.filename.toLowerCase().match(/\.(pdf)$/)
                         ? "📄"
                         : ev.filename.toLowerCase().match(/\.(mp4|avi|mov)$/)
-                        ? "🎥"
-                        : ev.filename.toLowerCase().match(/\.(doc|docx)$/)
-                        ? "📝"
-                        : "📁"}
+                          ? "🎥"
+                          : ev.filename.toLowerCase().match(/\.(doc|docx)$/)
+                            ? "📝"
+                            : "📁"}
                     </div>
                   </div>
                   <div className="evidence-info">
@@ -815,7 +994,9 @@ export default function CaseDetail() {
         {savedReports.length === 0 ? (
           <div className="empty-state">
             <p>No reports generated yet</p>
-            <small>Use the Generate Report button in Analysis Tools to create one</small>
+            <small>
+              Use the Generate Report button in Analysis Tools to create one
+            </small>
           </div>
         ) : (
           <div className="saved-reports-list">
@@ -823,11 +1004,19 @@ export default function CaseDetail() {
               <div key={report.id} className="saved-report-card">
                 <div className="saved-report-info">
                   <div className="saved-report-meta">
-                    <span className="report-meta-item">🖼️ {report.evidence_count} evidence</span>
-                    <span className="report-meta-item">🔍 {report.detection_count} detections</span>
-                    <span className="report-meta-item">👥 {report.witness_count} witnesses</span>
+                    <span className="report-meta-item">
+                      🖼️ {report.evidence_count} evidence
+                    </span>
+                    <span className="report-meta-item">
+                      🔍 {report.detection_count} detections
+                    </span>
+                    <span className="report-meta-item">
+                      👥 {report.witness_count} witnesses
+                    </span>
                     {report.generated_by && (
-                      <span className="report-meta-item">👤 {report.generated_by}</span>
+                      <span className="report-meta-item">
+                        👤 {report.generated_by}
+                      </span>
                     )}
                   </div>
                   <div className="saved-report-timestamp">
@@ -835,7 +1024,10 @@ export default function CaseDetail() {
                   </div>
                 </div>
                 <div className="saved-report-actions">
-                  <button className="btn-view-report" onClick={() => handleViewSavedReport(report)}>
+                  <button
+                    className="btn-view-report"
+                    onClick={() => handleViewSavedReport(report)}
+                  >
                     👁 View
                   </button>
                   <button
@@ -843,7 +1035,11 @@ export default function CaseDetail() {
                     onClick={() => handleDeleteSavedReport(report.id)}
                     disabled={deletingReportId === report.id}
                     title="Delete report"
-                    style={{ position: "static", width: "32px", height: "32px" }}
+                    style={{
+                      position: "static",
+                      width: "32px",
+                      height: "32px",
+                    }}
                   >
                     {deletingReportId === report.id ? "⏳" : "×"}
                   </button>
@@ -856,35 +1052,69 @@ export default function CaseDetail() {
 
       {/* UPDATED: Object Detection Modal with success screen */}
       {showDetectionModal && (
-        <div className="modal-overlay" onClick={() => { setShowDetectionModal(false); setDetectionSuccess(false); }}>
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            setShowDetectionModal(false);
+            setDetectionSuccess(false);
+          }}
+        >
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>{detectionSuccess ? "Detection Complete" : "Run Object Detection"}</h3>
+              <h3>
+                {detectionSuccess
+                  ? "Detection Complete"
+                  : "Run Object Detection"}
+              </h3>
               <button
                 className="modal-close"
-                onClick={() => { setShowDetectionModal(false); setDetectionSuccess(false); }}
+                onClick={() => {
+                  setShowDetectionModal(false);
+                  setDetectionSuccess(false);
+                }}
               >
                 ×
               </button>
             </div>
             <div className="modal-body">
-
               {/* Success screen */}
               {detectionSuccess ? (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "20px", padding: "16px 0 8px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "20px",
+                    padding: "16px 0 8px",
+                  }}
+                >
                   <div style={{ fontSize: "56px", lineHeight: 1 }}>✅</div>
                   <div style={{ textAlign: "center" }}>
-                    <p style={{ color: "#f1f1f1", fontSize: "16px", fontWeight: 600, margin: "0 0 6px" }}>
+                    <p
+                      style={{
+                        color: "#f1f1f1",
+                        fontSize: "16px",
+                        fontWeight: 600,
+                        margin: "0 0 6px",
+                      }}
+                    >
                       Object detection completed successfully
                     </p>
-                    <p style={{ color: "#9ca3af", fontSize: "13px", margin: 0 }}>
+                    <p
+                      style={{ color: "#9ca3af", fontSize: "13px", margin: 0 }}
+                    >
                       Results have been saved. Would you like to view them?
                     </p>
                   </div>
-                  <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
+                  <div
+                    style={{ display: "flex", gap: "12px", marginTop: "4px" }}
+                  >
                     <button
                       className="btn-cancel-edit"
-                      onClick={() => { setShowDetectionModal(false); setDetectionSuccess(false); }}
+                      onClick={() => {
+                        setShowDetectionModal(false);
+                        setDetectionSuccess(false);
+                      }}
                     >
                       Later
                     </button>
@@ -904,7 +1134,9 @@ export default function CaseDetail() {
                 /* Normal detection form */
                 <>
                   {detectionMessage.text && (
-                    <div className={`detection-message ${detectionMessage.type}`}>
+                    <div
+                      className={`detection-message ${detectionMessage.type}`}
+                    >
                       {detectionMessage.text}
                     </div>
                   )}
@@ -913,7 +1145,8 @@ export default function CaseDetail() {
                       <div className="model-info-box">
                         <strong>Object Detection AI</strong>
                         <p className="model-description">
-                          Detects weapons, blood evidence, glass, and human presence in crime scenes.
+                          Detects weapons, blood evidence, glass, and human
+                          presence in crime scenes.
                         </p>
                       </div>
                     </div>
@@ -927,7 +1160,9 @@ export default function CaseDetail() {
                       >
                         <option value="">Choose an image...</option>
                         {imageEvidence.map((item) => (
-                          <option key={item.id} value={item.id}>{item.filename}</option>
+                          <option key={item.id} value={item.id}>
+                            {item.filename}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -938,13 +1173,29 @@ export default function CaseDetail() {
                       onClick={() => handleRunDetection(false)}
                       disabled={runningDetection || !selectedEvidence}
                     >
-                      {runningDetection && <span className="loading-spinner"></span>}
-                      {runningDetection ? "Analyzing..." : "Run Detection"}
+                      {runningDetection && (
+                        <span className="loading-spinner"></span>
+                      )}
+                      {runningDetection ? "Analyzing..." : "Run on Selected"}
                     </button>
+
+                    {imageEvidence.length > 1 && (
+                      <button
+                        className="btn-run-all"
+                        onClick={() => handleRunDetection(true)}
+                        disabled={runningDetection}
+                      >
+                        {runningDetection && (
+                          <span className="loading-spinner"></span>
+                        )}
+                        {runningDetection
+                          ? "Analyzing..."
+                          : `Run on All (${imageEvidence.length})`}
+                      </button>
+                    )}
                   </div>
                 </>
               )}
-
             </div>
           </div>
         </div>
@@ -952,7 +1203,10 @@ export default function CaseDetail() {
 
       {/* Report Modal */}
       {showReportModal && (
-        <div className="modal-overlay" onClick={() => !generatingReport && setShowReportModal(false)}>
+        <div
+          className="modal-overlay"
+          onClick={() => !generatingReport && setShowReportModal(false)}
+        >
           <div
             className={`modal-content report-modal-content ${reportFullscreen ? "report-modal-fullscreen" : ""}`}
             onClick={(e) => e.stopPropagation()}
@@ -969,7 +1223,10 @@ export default function CaseDetail() {
                 </button>
                 <button
                   className="modal-close"
-                  onClick={() => { setShowReportModal(false); setReportFullscreen(false); }}
+                  onClick={() => {
+                    setShowReportModal(false);
+                    setReportFullscreen(false);
+                  }}
                   disabled={generatingReport}
                 >
                   ×
@@ -990,17 +1247,35 @@ export default function CaseDetail() {
               {reportData && !generatingReport && (
                 <>
                   <div className="report-meta">
-                    <span className="report-meta-item">📁 Case: {reportData.case_name}</span>
-                    <span className="report-meta-item">🖼️ Evidence: {reportData.evidence_count}</span>
-                    <span className="report-meta-item">🔍 Detections: {reportData.detection_count}</span>
-                    <span className="report-meta-item">👥 Witnesses: {reportData.witness_count}</span>
+                    <span className="report-meta-item">
+                      📁 Case: {reportData.case_name}
+                    </span>
+                    <span className="report-meta-item">
+                      🖼️ Evidence: {reportData.evidence_count}
+                    </span>
+                    <span className="report-meta-item">
+                      🔍 Detections: {reportData.detection_count}
+                    </span>
+                    <span className="report-meta-item">
+                      👥 Witnesses: {reportData.witness_count}
+                    </span>
                     <span className="report-meta-item">
                       🕒 {new Date(reportData.generated_at).toLocaleString()}
                     </span>
                   </div>
                   <div className="report-actions">
-                    <button className="btn-save-edit" onClick={handleCopyReport}>📋 Copy Report</button>
-                    <button className="btn-run-detection" onClick={handleDownloadReport}>⬇️ Download .txt</button>
+                    <button
+                      className="btn-save-edit"
+                      onClick={handleCopyReport}
+                    >
+                      📋 Copy Report
+                    </button>
+                    <button
+                      className="btn-run-detection"
+                      onClick={handleDownloadReport}
+                    >
+                      ⬇️ Download .txt
+                    </button>
                   </div>
                   <div className="report-renderer-wrap">
                     <ForensicReportRenderer reportText={reportData.report} />
@@ -1015,10 +1290,19 @@ export default function CaseDetail() {
       {/* Confirm Delete Modal */}
       {confirmDelete && (
         <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
-          <div className="modal-content" style={{ maxWidth: "420px" }} onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal-content"
+            style={{ maxWidth: "420px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
               <h3>Confirm Delete</h3>
-              <button className="modal-close" onClick={() => setConfirmDelete(null)}>×</button>
+              <button
+                className="modal-close"
+                onClick={() => setConfirmDelete(null)}
+              >
+                ×
+              </button>
             </div>
             <div className="modal-body" style={{ padding: "1.5rem" }}>
               <p style={{ marginBottom: "1.5rem", color: "#94a3b8" }}>
@@ -1026,8 +1310,19 @@ export default function CaseDetail() {
                   ? `Are you sure you want to delete "${confirmDelete.name}"? This will also delete any associated detection results.`
                   : "Are you sure you want to delete this detection result?"}
               </p>
-              <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
-                <button className="btn-cancel-edit" onClick={() => setConfirmDelete(null)}>Cancel</button>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.75rem",
+                  justifyContent: "flex-end",
+                }}
+              >
+                <button
+                  className="btn-cancel-edit"
+                  onClick={() => setConfirmDelete(null)}
+                >
+                  Cancel
+                </button>
                 <button
                   className="btn-run-detection"
                   style={{ background: "#ef4444" }}
@@ -1043,10 +1338,15 @@ export default function CaseDetail() {
                           await load();
                         } else {
                           const err = await response.json();
-                          setMessage("❌ Failed to delete: " + (err.detail || "Unknown error"));
+                          setMessage(
+                            "❌ Failed to delete: " +
+                              (err.detail || "Unknown error"),
+                          );
                         }
                       } catch (error) {
-                        setMessage("❌ Error deleting evidence: " + error.message);
+                        setMessage(
+                          "❌ Error deleting evidence: " + error.message,
+                        );
                       } finally {
                         setDeletingEvidenceId(null);
                       }

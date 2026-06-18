@@ -102,7 +102,7 @@ async def run_object_detection(case_id: int, request: ObjectDetectionRequest, cu
         else:
             _exec_with_logging(
                 cur,
-                "SELECT * FROM evidence WHERE case_id = %s AND user_id = %s AND (filename ILIKE '%.jpg' OR filename ILIKE '%.jpeg' OR filename ILIKE '%.png') ORDER BY uploaded_at DESC",
+               "SELECT * FROM evidence WHERE case_id = %s AND user_id = %s AND (filename ILIKE '%%.jpg' OR filename ILIKE '%%.jpeg' OR filename ILIKE '%%.png') ORDER BY uploaded_at DESC",
                 (case_id, current_user.get("id"))
             )
 
