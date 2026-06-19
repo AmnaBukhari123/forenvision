@@ -8,11 +8,12 @@ import {
   getReconstructionStatus,
   listCaseJobs,
   deleteReconstructionJob,
+  BASE,
 } from "../services/api";
 import "./Reconstruction3D.css";
 
 const POLL_INTERVAL = 2000;
-const MODEL_VIEWER_SCRIPT = "https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js";
+const MODEL_VIEWER_SCRIPT = "/model-viewer.min.js";
 
 // ── Load model-viewer script once ────────────────────────────────────────────
 function useModelViewerScript() {
@@ -211,7 +212,7 @@ export default function Reconstruction3D() {
   const getStatusLabel = (s) => ({ done: "✓ Done", running: "⟳ Processing", failed: "✗ Failed" }[s] || "· Pending");
   const formatDate     = (s) => s ? new Date(s).toLocaleString() : "—";
   const isJobRunning   = !!activeJobId;
-  const getModelUrl    = (job) => job.output_path ? `http://127.0.0.1:8000/3d-models/${job.output_path}` : null;
+  const getModelUrl    = (job) => job.output_path ? `${BASE}/3d-models/${job.output_path}` : null;
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (loading) {
@@ -271,7 +272,7 @@ export default function Reconstruction3D() {
               >
                 <div className="r3d-image-preview">
                   <img
-                    src={`http://127.0.0.1:8000/uploads/${img.filename}`}
+                    src={`${BASE}/uploads/${img.filename}`}
                     alt={img.filename}
                     onError={(e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }}
                   />
@@ -359,7 +360,7 @@ export default function Reconstruction3D() {
           <div className="r3d-dialog" onClick={(e) => e.stopPropagation()}>
             <div className="r3d-dialog-preview">
               <img
-                src={`http://127.0.0.1:8000/uploads/${pendingImage.filename}`}
+                src={`${BASE}/uploads/${pendingImage.filename}`}
                 alt={pendingImage.filename}
                 onError={(e) => { e.target.style.display = "none"; }}
               />

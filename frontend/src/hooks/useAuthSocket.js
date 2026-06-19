@@ -1,6 +1,8 @@
 import { useEffect, useRef, useCallback, useState } from "react";
+import { BASE } from "../services/api";
 
-const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000/api/v1/ws/auth";
+const wsBase = BASE.replace(/^http/, "ws");
+const WS_URL = import.meta.env.VITE_WS_URL || `${wsBase}/api/v1/ws/auth`;
 
 export function useAuthSocket(onEvent) {
   const socketRef      = useRef(null);

@@ -6,6 +6,7 @@ import {
   getObjectDetectionResults,
   deleteDetectionResult,
   getCurrentUser,
+  BASE,
 } from "../services/api";
 import "./CaseAnalytics.css";
 
@@ -495,7 +496,7 @@ export default function CaseAnalytics() {
                 const dims = result.results?.image_dimensions;
                 const isExpanded = expandedResult === result.id;
                 const imagePath = result.evidence_filename
-                  ? `http://127.0.0.1:8000/uploads/${result.evidence_filename}`
+                  ? `${BASE}/uploads/${result.evidence_filename}`
                   : null;
 
                 return (

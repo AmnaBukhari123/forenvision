@@ -17,6 +17,7 @@ import {
   generateCaseReport,
   listCaseReports,
   deleteCaseReport,
+  BASE,
 } from "../services/api";
 import "./CaseDetail.css";
 import ForensicReportRenderer from "./ForensicReportRenderer";
@@ -1027,7 +1028,7 @@ const imageEvidence = getImageEvidence();
                       .toLowerCase()
                       .match(/\.(jpg|jpeg|png|gif|bmp|webp)$/) ? (
                       <img
-                        src={`http://127.0.0.1:8000/uploads/${ev.filename}`}
+                        src={`${BASE}/uploads/${ev.filename}`}
                         alt={ev.filename}
                         className="evidence-image"
                         onError={(e) => {
@@ -1057,7 +1058,7 @@ const imageEvidence = getImageEvidence();
                   </div>
                   <div className="evidence-info">
                     <a
-                      href={`http://127.0.0.1:8000/uploads/${ev.filename}`}
+                      href={`${BASE}/uploads/${ev.filename}`}
                       target="_blank"
                       rel="noreferrer"
                       className="evidence-link"

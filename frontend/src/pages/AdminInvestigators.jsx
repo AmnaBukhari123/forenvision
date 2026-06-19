@@ -18,6 +18,7 @@ import {
 import { 
   getInvestigators, 
   getInvestigatorDetails,
+  BASE,
 } from "../services/api";
 import "./AdminInvestigators.css";
 
@@ -122,7 +123,7 @@ export default function AdminInvestigators() {
       };
 
       const response = await fetch(
-        `http://localhost:8000/api/v1/admin/investigators/${editingInvestigator.id}`,
+        `${BASE}/api/v1/admin/investigators/${editingInvestigator.id}`,
         {
           method: "PUT",
           headers: {
@@ -165,7 +166,7 @@ const handleDeleteInvestigator = async (investigatorId, investigatorName) => {
     const token = localStorage.getItem("token");
 
     const response = await fetch(
-      `http://localhost:8000/api/v1/admin/investigators/${investigatorId}`,
+      `${BASE}/api/v1/admin/investigators/${investigatorId}`,
       {
         method: "DELETE",
         headers: {

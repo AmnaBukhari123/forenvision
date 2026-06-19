@@ -22,7 +22,8 @@ import {
   updateContactRequest,
   deleteContactRequest,
   getInvestigators,
-  convertContactRequestToCase
+  convertContactRequestToCase,
+  BASE
 } from "../services/api";
 import "./AdminContactRequests.css";
 
@@ -474,7 +475,7 @@ export default function AdminContactRequests() {
                       {selectedRequest.evidence_files.map((file, index) => (
                         <a
                           key={index}
-                          href={`http://127.0.0.1:8000/${file}`}
+                          href={`${BASE}/${file}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="evidence-file-link"

@@ -16,7 +16,8 @@ import {
 import { 
   getPendingInvestigators, 
   updateInvestigatorApproval,
-  getInvestigatorApprovalHistory 
+  getInvestigatorApprovalHistory,
+  BASE
 } from "../services/api";
 import "./PendingInvestigators.css";
 
@@ -41,7 +42,7 @@ const getCertificationUrl = (investigator) => {
     return raw;
   }
 
-  return `http://localhost:8000/${raw.replace(/^\/+/, "")}`;
+  return `${BASE}/${raw.replace(/^\/+/, "")}`;
 };
 
 const getCertificationFileName = (url) => {

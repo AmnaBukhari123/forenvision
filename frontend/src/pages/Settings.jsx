@@ -1,9 +1,10 @@
 // pages/Settings.jsx
 import React, { useState, useEffect } from 'react';
 import { User, Key } from 'lucide-react';
+import { BASE } from '../services/api';
 import './Settings.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || BASE;
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('profile');
